@@ -9,15 +9,13 @@ rustflags = [
     "-C", "link-arg=--nmagic",
     "-C", "link-arg=-Tlink.x",
     "-C", "link-arg=-Tlink-rp.x",
-    # "-C", "link-arg=-Tdefmt.x",
     "-C", "linker=flip-link",
-    "-C", "inline-threshold=5",
     "-C", "no-vectorize-loops",
 ]
 # This runner will make a UF2 file and then copy it to a mounted RP2040 in USB
 # Bootloader mode:
-runner = "elf2uf2-rs -d"
+# runner = "elf2uf2-rs -d"
 
 # This runner will find a supported SWD debug probe and flash your RP2040 over
 # SWD:
-# runner = "sudo probe-rs run --chip RP2040"
+runner = "sudo probe-rs run --chip RP2040"
