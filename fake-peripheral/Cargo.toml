@@ -1,11 +1,9 @@
 [package]
-name = "nrf52"
+name = "fake-peripheral"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-test-suite = { path = "../test-suite" }
-
 defmt = "1.0.1"
 defmt-rtt = "1.0.0"
 
@@ -16,4 +14,4 @@ panic-probe = { version = "1.0.0", features = ["print-defmt"] }
 
 embassy-executor = { version = "0.7.0",features = ["arch-cortex-m", "executor-thread", "executor-interrupt", "defmt"] }
 embassy-time = { version = "0.4.0", features = ["defmt", "defmt-timestamp-uptime"] }
-embassy-nrf = { version = "0.3.1", features = ["defmt", "nrf52840", "time-driver-rtc1", "gpiote", "unstable-pac", "time"] }
+embassy-rp = { version = "0.4.0", features = [ "defmt", "time-driver", "rp2040"] }
