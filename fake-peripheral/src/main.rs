@@ -12,6 +12,8 @@ use embassy_rp::pio_programs::pwm::{PioPwm, PioPwmProgram};
 use embassy_time::Timer;
 use {defmt_rtt as _, panic_probe as _};
 
+use defmt::info;
+
 const REFRESH_INTERVAL: u64 = 20000;
 
 bind_interrupts!(struct Irqs {
@@ -22,6 +24,8 @@ bind_interrupts!(struct Irqs {
 async fn main(_spawner: Spawner) {
     let p = embassy_rp::init(Default::default());
     let Pio { mut common, sm0, .. } = Pio::new(p.PIO0, Irqs);
+
+    info!("Hello World");
 
     // Note that PIN_25 is the led pin on the Pico
     let prg = PioPwmProgram::new(&mut common);
