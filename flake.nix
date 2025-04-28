@@ -12,7 +12,6 @@
       pkgs = nixpkgs.legacyPackages.${system};
     in
     {
-
       devShells.${system}.default = pkgs.mkShell {
         buildInputs = with pkgs; [ systemd ];
         nativeBuildInputs = with pkgs; [ pkg-config ];

@@ -1,15 +1,21 @@
 #![no_std]
 #![no_main]
 
+use defmt::info;
 use embassy_executor::Spawner;
 use embassy_nrf::gpio::{Level, Output, OutputDrive};
 use embassy_time::Timer;
-use {panic_probe as _, defmt_rtt as _};
+use panic_probe as _;
+use rtt_target::rtt_init_defmt;
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
+    rtt_init_defmt!();
+
     let mut led = Output::new(p.P0_13, Level::Low, OutputDrive::Standard);
+
+    info!("Hello world!");
 
     loop {
         led.set_high();
