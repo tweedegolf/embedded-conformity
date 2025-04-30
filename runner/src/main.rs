@@ -1,8 +1,15 @@
-use std::path::Path;
+use std::fs::canonicalize;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::thread::sleep;
 use std::time::Duration;
 
+use cargo::core::Workspace;
+use cargo::core::compiler::CompileMode;
+use cargo::ops::CompileOptions;
+use cargo::util::interning::InternedString;
+use cargo::{GlobalContext, ops};
+use clap::{Parser, Subcommand};
 use probe_rs::Permissions;
 use probe_rs::config::TargetSelector;
 use probe_rs::flashing::{Format, download_file};
@@ -12,8 +19,26 @@ use probe_rs::rtt::Rtt;
 
 // TODO: Use clap to take these as arguments
 const DEBUG_PROBE_UUID: &str = "E6614103E78B5024";
+const NRF52_PROBE_UUID: &str = "001050295885";
 const FAKE_PERIPHERAL_FIRMWARE_PATH: &str =
     "../fake-peripheral/target/thumbv6m-none-eabi/release/fake-peripheral";
+
+#[derive(Parser)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    List,
+    Test {
+        #[arg(long)]
+        fake_peripheral_uuid: String,
+        #[arg(long)]
+        device_under_test_uuid: String,
+    },
+}
 
 // 1. Upload firmware to DUT: https://probe.rs/docs/library/quickstart/#downloading-to-flash
 // 2. Upload firmware to client (RP2040)
@@ -21,26 +46,63 @@ const FAKE_PERIPHERAL_FIRMWARE_PATH: &str =
 // 4. Report Status, use defmt and rtt to read back from the chips?
 
 fn main() {
+    let cli = Cli::parse();
+
+    match cli.command {
+        Commands::List => {
+            let l = Lister::new();
+            let probes = l.list_all();
+            println!("{probes:#?}");
+        }
+        Commands::Test {
+            fake_peripheral_uuid,
+            device_under_test_uuid,
+        } => {
+            run_test(&fake_peripheral_uuid, &device_under_test_uuid);
+        }
+    }
+}
+
+fn run_test(fake: &str, dut: &str) {
     let lister = Lister::new();
     let probes = lister.list_all();
 
-    let probe_info = probes
+    let fake_peripheral = probes
         .iter()
-        .find(|el| el.serial_number == Some(DEBUG_PROBE_UUID.to_owned()))
-        .unwrap();
+        .find(|el| el.serial_number.as_deref() == Some(fake))
+        .expect("Could not find fake_peripheral with uuid");
 
-    build_firmware("../fake-peripheral/");
-    flash_firmware(probe_info, "rp2040", FAKE_PERIPHERAL_FIRMWARE_PATH);
+    let dut = probes
+        .iter()
+        .find(|el| el.serial_number.as_deref() == Some(dut))
+        .expect("Could not find dut with uuid");
 
-    start_fake_peripheral(probe_info);
+    // TODO Remove these hardcoded values
+    let fake_elf = build_firmware("../fake-peripheral/Cargo.toml");
+    let dut_elf = build_firmware("../nRF52/Cargo.toml");
+
+    flash_firmware(fake_peripheral, "rp2040", fake_elf);
+    flash_firmware(dut, "nRF52840_xxAA", dut_elf);
+
+    // start_fake_peripheral(fake_peripheral);
+    start_dut(dut);
 }
 
-fn build_firmware(path: impl AsRef<Path>) {
-    Command::new("cargo")
-        .args(["build", "--release"])
-        .current_dir(path)
-        .output()
-        .unwrap();
+fn build_firmware(path: impl AsRef<Path>) -> PathBuf {
+    let mut gctx = GlobalContext::default().unwrap();
+    // makes sure the correct `.cargo/config` is loaded
+    gctx.reload_rooted_at(&path).unwrap();
+
+    let path = canonicalize(path).unwrap();
+    let ws = Workspace::new(&path, &gctx).unwrap();
+    let mut opts = CompileOptions::new(&gctx, CompileMode::Build).unwrap();
+
+    opts.build_config.requested_profile = InternedString::new("release");
+
+    let mut comp = ops::compile(&ws, &opts).unwrap();
+    assert!(comp.binaries.len() == 1);
+
+    comp.binaries.pop().unwrap().path
 }
 
 fn flash_firmware(
@@ -58,12 +120,12 @@ fn flash_firmware(
 }
 
 fn start_fake_peripheral(probe_info: &DebugProbeInfo) {
-    // TODO: What here is absolutely necessery
+    // TODO: What here is absolutely necessary
     let probe = probe_info.open().unwrap();
     let mut session = probe.attach("rp2040", Permissions::default()).unwrap();
     let mut core = session.core(0).unwrap();
 
-    // TODO: Is this absolutely necessery?
+    // TODO: Is this absolutely necessary?
     core.reset().unwrap();
     core.run().unwrap();
 
@@ -91,5 +153,12 @@ fn start_fake_peripheral(probe_info: &DebugProbeInfo) {
 }
 
 fn start_dut(probe_info: &DebugProbeInfo) {
-    todo!()
+    // TODO: What here is absolutely necessary
+    let probe = probe_info.open().unwrap();
+    let mut session = probe.attach("nRF52840_xxAA", Permissions::default()).unwrap();
+    let mut core = session.core(0).unwrap();
+
+    // TODO: Is this absolutely necessary?
+    // core.reset().unwrap();
+    core.run().unwrap();
 }
