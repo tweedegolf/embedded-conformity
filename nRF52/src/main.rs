@@ -15,8 +15,6 @@ async fn main(_spawner: Spawner) {
 
     let mut led = Output::new(p.P0_13, Level::Low, OutputDrive::Standard);
 
-    info!("Hello world!");
-
     loop {
         led.set_high();
         Timer::after_millis(300).await;

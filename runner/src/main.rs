@@ -17,12 +17,6 @@ use probe_rs::probe::DebugProbeInfo;
 use probe_rs::probe::list::Lister;
 use probe_rs::rtt::Rtt;
 
-// TODO: Use clap to take these as arguments
-const DEBUG_PROBE_UUID: &str = "E6614103E78B5024";
-const NRF52_PROBE_UUID: &str = "001050295885";
-const FAKE_PERIPHERAL_FIRMWARE_PATH: &str =
-    "../fake-peripheral/target/thumbv6m-none-eabi/release/fake-peripheral";
-
 #[derive(Parser)]
 struct Cli {
     #[command(subcommand)]
@@ -84,8 +78,8 @@ fn run_test(fake: &str, dut: &str) {
     flash_firmware(fake_peripheral, "rp2040", fake_elf);
     flash_firmware(dut, "nRF52840_xxAA", dut_elf);
 
-    // start_fake_peripheral(fake_peripheral);
     start_dut(dut);
+    start_fake_peripheral(fake_peripheral);
 }
 
 fn build_firmware(path: impl AsRef<Path>) -> PathBuf {
@@ -127,7 +121,7 @@ fn start_fake_peripheral(probe_info: &DebugProbeInfo) {
 
     // TODO: Is this absolutely necessary?
     core.reset().unwrap();
-    core.run().unwrap();
+    // core.run().unwrap();
 
     let mut rtt = Rtt::attach(&mut core).unwrap();
 
@@ -155,10 +149,11 @@ fn start_fake_peripheral(probe_info: &DebugProbeInfo) {
 fn start_dut(probe_info: &DebugProbeInfo) {
     // TODO: What here is absolutely necessary
     let probe = probe_info.open().unwrap();
-    let mut session = probe.attach("nRF52840_xxAA", Permissions::default()).unwrap();
+    let mut session = probe
+        .attach("nRF52840_xxAA", Permissions::default())
+        .unwrap();
     let mut core = session.core(0).unwrap();
 
     // TODO: Is this absolutely necessary?
-    // core.reset().unwrap();
-    core.run().unwrap();
+    core.reset().unwrap();
 }
