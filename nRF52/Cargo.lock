@@ -672,7 +672,9 @@ dependencies = [
 name = "test-suite"
 version = "0.1.0"
 dependencies = [
+ "defmt 0.3.100",
  "embedded-hal 1.0.0",
+ "rtt-target",
 ]
 
 [[package]]

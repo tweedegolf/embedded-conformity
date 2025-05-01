@@ -1,7 +1,7 @@
 use std::fs::canonicalize;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::thread::sleep;
+use std::thread::{self, Thread, sleep};
 use std::time::Duration;
 
 use cargo::core::Workspace;
@@ -10,12 +10,15 @@ use cargo::ops::CompileOptions;
 use cargo::util::interning::InternedString;
 use cargo::{GlobalContext, ops};
 use clap::{Parser, Subcommand};
+use defmt_logger::run_logger;
 use probe_rs::Permissions;
 use probe_rs::config::TargetSelector;
 use probe_rs::flashing::{Format, download_file};
 use probe_rs::probe::DebugProbeInfo;
 use probe_rs::probe::list::Lister;
 use probe_rs::rtt::Rtt;
+
+mod defmt_logger;
 
 #[derive(Parser)]
 struct Cli {
@@ -75,11 +78,18 @@ fn run_test(fake: &str, dut: &str) {
     let fake_elf = build_firmware("../fake-peripheral/Cargo.toml");
     let dut_elf = build_firmware("../nRF52/Cargo.toml");
 
-    flash_firmware(fake_peripheral, "rp2040", fake_elf);
-    flash_firmware(dut, "nRF52840_xxAA", dut_elf);
+    flash_firmware(fake_peripheral, "rp2040", fake_elf.as_path());
+    flash_firmware(dut, "nRF52840_xxAA", dut_elf.as_path());
 
-    start_dut(dut);
-    start_fake_peripheral(fake_peripheral);
+    thread::scope(|s| {
+        s.spawn(|| {
+            start_dut(dut, dut_elf.as_path());
+        });
+
+        s.spawn(|| {
+            start_fake_peripheral(fake_peripheral, fake_elf.as_path());
+        });
+    });
 }
 
 fn build_firmware(path: impl AsRef<Path>) -> PathBuf {
@@ -113,8 +123,8 @@ fn flash_firmware(
     download_file(&mut session, elf, Format::Elf).unwrap();
 }
 
-fn start_fake_peripheral(probe_info: &DebugProbeInfo) {
-    // TODO: What here is absolutely necessary
+fn start_fake_peripheral(probe_info: &DebugProbeInfo, elf: impl AsRef<Path>) {
+    // todo: what here is absolutely necessary
     let probe = probe_info.open().unwrap();
     let mut session = probe.attach("rp2040", Permissions::default()).unwrap();
     let mut core = session.core(0).unwrap();
@@ -131,22 +141,11 @@ fn start_fake_peripheral(probe_info: &DebugProbeInfo) {
     down_channel.write(&mut core, &[42]).unwrap();
 
     // Start reading from the client
-    let up_channel = rtt.up_channel(0).unwrap();
-    loop {
-        let mut buffer = [0u8; 1024];
-        match up_channel.read(&mut core, &mut buffer) {
-            Ok(n) if n > 0 => {
-                let s = String::from_utf8_lossy(&buffer[..n]);
-                print!("{}", s);
-            }
-            _ => {
-                sleep(Duration::from_millis(50));
-            }
-        }
-    }
+    let mut up_channel = rtt.up_channel(0).unwrap();
+    run_logger("fp", &mut core, &mut up_channel, elf);
 }
 
-fn start_dut(probe_info: &DebugProbeInfo) {
+fn start_dut(probe_info: &DebugProbeInfo, elf: impl AsRef<Path>) {
     // TODO: What here is absolutely necessary
     let probe = probe_info.open().unwrap();
     let mut session = probe
@@ -156,4 +155,23 @@ fn start_dut(probe_info: &DebugProbeInfo) {
 
     // TODO: Is this absolutely necessary?
     core.reset().unwrap();
+
+    let mut rtt = match Rtt::attach(&mut core) {
+        Ok(rtt) => rtt,
+        // Workaround for nRF52840_xxAA
+        // https://github.com/probe-rs/probe-rs/issues/2242
+        Err(probe_rs::rtt::Error::MultipleControlBlocksFound(mut rtts)) => rtts.pop().unwrap(),
+        e @ Err(_) => e.unwrap(),
+    };
+
+    let down_channel = rtt.down_channel(0).unwrap();
+
+    // Send "Start command"
+    down_channel
+        .write(&mut core, &[test_suite::MAGIC_START_BYTE])
+        .unwrap();
+
+    // Start reading from the client
+    let mut up_channel = rtt.up_channel(0).unwrap();
+    run_logger("dut", &mut core, &mut up_channel, elf);
 }

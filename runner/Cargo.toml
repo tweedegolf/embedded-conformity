@@ -7,4 +7,6 @@ edition = "2024"
 probe-rs = "0.25"
 clap = { version = "4.5", features = ["derive"] }
 cargo = { version = "0.87", features = [ "all-static" ] }
-
+test-suite = { path = "../test-suite" }
+defmt-decoder = "1"
+log = "0.4"
