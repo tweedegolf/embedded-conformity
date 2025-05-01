@@ -35,6 +35,8 @@ async fn main(_spawner: Spawner) {
     wait_for_host(&mut ctx.channels.down[0]);
     info!("FP: Ready");
 
+    panic!("woops");
+
     loop {
         Timer::after_millis(100).await;
         led.toggle();

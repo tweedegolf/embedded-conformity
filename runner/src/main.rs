@@ -1,8 +1,7 @@
-use std::fs::canonicalize;
+use std::fs::{self, canonicalize};
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::thread::{self, Thread, sleep};
-use std::time::Duration;
+use std::str::FromStr;
+use std::thread;
 
 use cargo::core::Workspace;
 use cargo::core::compiler::CompileMode;
@@ -17,6 +16,8 @@ use probe_rs::flashing::{Format, download_file};
 use probe_rs::probe::DebugProbeInfo;
 use probe_rs::probe::list::Lister;
 use probe_rs::rtt::Rtt;
+use serde::{Deserialize, Serialize};
+use test_suite::MAGIC_START_BYTE;
 
 mod defmt_logger;
 
@@ -30,11 +31,23 @@ struct Cli {
 enum Commands {
     List,
     Test {
-        #[arg(long)]
-        fake_peripheral_uuid: String,
-        #[arg(long)]
-        device_under_test_uuid: String,
+        #[arg(long = "config", short, default_value = "./config.toml")]
+        config_file: PathBuf,
     },
+    ExampleConfig,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Config {
+    device_under_test: DeviceInfo,
+    fake_peripheral: DeviceInfo,
+}
+
+#[derive(Serialize, Deserialize)]
+struct DeviceInfo {
+    firmware_path: PathBuf,
+    serial: String,
+    chip: String,
 }
 
 // 1. Upload firmware to DUT: https://probe.rs/docs/library/quickstart/#downloading-to-flash
@@ -51,35 +64,65 @@ fn main() {
             let probes = l.list_all();
             println!("{probes:#?}");
         }
-        Commands::Test {
-            fake_peripheral_uuid,
-            device_under_test_uuid,
-        } => {
-            run_test(&fake_peripheral_uuid, &device_under_test_uuid);
+        Commands::Test { config_file } => {
+            let str = fs::read_to_string(config_file).unwrap();
+            let cfg: Config = toml::from_str(&str).unwrap();
+            run_test(cfg);
+        }
+        Commands::ExampleConfig => {
+            let cfg = Config {
+                device_under_test: DeviceInfo {
+                    firmware_path: PathBuf::from_str("../nRF52/").unwrap(),
+                    serial: "001050295885".to_owned(),
+                    chip: "nRF52805_xxAA".to_owned(),
+                },
+                fake_peripheral: DeviceInfo {
+                    firmware_path: PathBuf::from_str("../fake-peripheral/").unwrap(),
+                    serial: "E6614103E78B5024".to_owned(),
+                    chip: "rp2040".to_owned(),
+                },
+            };
+
+            let res = toml::to_string_pretty(&cfg).unwrap();
+            println!("{res}")
         }
     }
 }
 
-fn run_test(fake: &str, dut: &str) {
+fn run_test(cfg: Config) {
     let lister = Lister::new();
     let probes = lister.list_all();
 
     let fake_peripheral = probes
         .iter()
-        .find(|el| el.serial_number.as_deref() == Some(fake))
+        .find(|el| el.serial_number.as_deref() == Some(&cfg.fake_peripheral.serial))
         .expect("Could not find fake_peripheral with uuid");
 
     let dut = probes
         .iter()
-        .find(|el| el.serial_number.as_deref() == Some(dut))
+        .find(|el| el.serial_number.as_deref() == Some(&cfg.device_under_test.serial))
         .expect("Could not find dut with uuid");
 
-    // TODO Remove these hardcoded values
-    let fake_elf = build_firmware("../fake-peripheral/Cargo.toml");
-    let dut_elf = build_firmware("../nRF52/Cargo.toml");
+    let mut fake_path = cfg.fake_peripheral.firmware_path;
+    if !fake_path.ends_with("Cargo.toml") {
+        fake_path.push("Cargo.toml");
+    }
 
-    flash_firmware(fake_peripheral, "rp2040", fake_elf.as_path());
-    flash_firmware(dut, "nRF52840_xxAA", dut_elf.as_path());
+    let mut dut_path = cfg.device_under_test.firmware_path;
+    if !dut_path.ends_with("Cargo.toml") {
+        dut_path.push("Cargo.toml");
+    }
+
+    // TODO Remove these hardcoded values
+    let fake_elf = build_firmware(fake_path);
+    let dut_elf = build_firmware(dut_path);
+
+    flash_firmware(
+        fake_peripheral,
+        cfg.fake_peripheral.chip,
+        fake_elf.as_path(),
+    );
+    flash_firmware(dut, cfg.device_under_test.chip, dut_elf.as_path());
 
     thread::scope(|s| {
         s.spawn(|| {
@@ -138,11 +181,11 @@ fn start_fake_peripheral(probe_info: &DebugProbeInfo, elf: impl AsRef<Path>) {
     let down_channel = rtt.down_channel(0).unwrap();
 
     // Send "Start command"
-    down_channel.write(&mut core, &[42]).unwrap();
+    down_channel.write(&mut core, &[MAGIC_START_BYTE]).unwrap();
 
     // Start reading from the client
-    let mut up_channel = rtt.up_channel(0).unwrap();
-    run_logger("fp", &mut core, &mut up_channel, elf);
+    let up_channel = rtt.up_channel(0).unwrap();
+    run_logger("fp", &mut core, up_channel, elf);
 }
 
 fn start_dut(probe_info: &DebugProbeInfo, elf: impl AsRef<Path>) {
@@ -167,11 +210,9 @@ fn start_dut(probe_info: &DebugProbeInfo, elf: impl AsRef<Path>) {
     let down_channel = rtt.down_channel(0).unwrap();
 
     // Send "Start command"
-    down_channel
-        .write(&mut core, &[test_suite::MAGIC_START_BYTE])
-        .unwrap();
+    down_channel.write(&mut core, &[MAGIC_START_BYTE]).unwrap();
 
     // Start reading from the client
-    let mut up_channel = rtt.up_channel(0).unwrap();
-    run_logger("dut", &mut core, &mut up_channel, elf);
+    let up_channel = rtt.up_channel(0).unwrap();
+    run_logger("dut", &mut core, up_channel, elf);
 }

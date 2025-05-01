@@ -3740,7 +3740,9 @@ dependencies = [
  "defmt-decoder",
  "log",
  "probe-rs",
+ "serde",
  "test-suite",
+ "toml",
 ]
 
 [[package]]
