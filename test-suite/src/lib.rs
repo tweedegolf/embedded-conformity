@@ -2,28 +2,17 @@
 
 use defmt::info;
 use embedded_hal::i2c::{Error, I2c};
+use postcard::accumulator::{CobsAccumulator, FeedResult};
+use protocol::HostToDUT;
 use rtt_target::{ChannelMode, DownChannel, UpChannel, rtt_init, set_defmt_channel};
 
-pub const ADDR: u8 = 0x42;
-pub struct BasicTest<I2C> {
-    i2c: I2C,
-}
-
-impl<I2C: I2c> BasicTest<I2C> {
-    pub fn new(i2c: I2C) -> Self {
-        Self { i2c }
-    }
-
-    pub fn simple_write(&mut self) -> Result<(), I2C::Error> {
-        let value = [0x76];
-        self.i2c.write(ADDR, &value)?;
-        Ok(())
-    }
-}
+mod i2c_tests;
+pub mod protocol;
+mod sanity_tests;
 
 pub struct Channels {
-    pub up: [UpChannel; 1],
-    pub down: [DownChannel; 1],
+    pub up: UpChannel,
+    pub down: DownChannel,
 }
 
 pub struct Context {
@@ -56,27 +45,42 @@ pub fn init() -> Context {
 
     Context {
         channels: Channels {
-            up: [channels.up.1],
-            down: [channels.down.0],
+            up: channels.up.1,
+            down: channels.down.0,
         },
     }
 }
 
-pub const MAGIC_START_BYTE: u8 = 42;
-    pub fn wait_for_host(down: &mut DownChannel) {
-    let mut read_buf = [0; 32];
-    let mut read;
-    'outer: loop {
-        read = down.read(&mut read_buf);
-        for i in 0..read {
-            if read_buf[i] == MAGIC_START_BYTE {
-                break 'outer;
-            }
+pub fn run_tests(mut ctx: Context) {
+    // info!("DUT: Ready");
+    let mut raw_buf = [0u8; 128];
+    let mut cobs_buf: CobsAccumulator<256> = CobsAccumulator::new();
+
+    loop {
+        let ct = ctx.channels.down.read(&mut raw_buf);
+        // Finished reading input
+        if ct == 0 {
+            continue;
+        }
+
+        let buf = &raw_buf[..ct];
+        let mut window = &buf[..];
+
+        'cobs: while !window.is_empty() {
+            window = match cobs_buf.feed::<HostToDUT>(&window) {
+                FeedResult::Consumed => break 'cobs,
+                FeedResult::OverFull(new_wind) => new_wind,
+                FeedResult::DeserError(new_wind) => new_wind,
+                FeedResult::Success { data, remaining } => {
+                    // Do something with `data: MyData` here.
+                    match data {
+                        HostToDUT::Init => info!("Init Ready"),
+                        HostToDUT::Run(_) => todo!(),
+                    }
+
+                    remaining
+                }
+            };
         }
     }
-}
-
-pub fn run_tests(mut ctx: Context) {
-    wait_for_host(&mut ctx.channels.down[0]);
-    info!("DUT: Ready");
 }

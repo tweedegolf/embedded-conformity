@@ -5,5 +5,12 @@ edition = "2024"
 
 [dependencies]
 embedded-hal = "1"
-rtt-target = { version = "0.6", features = [ "defmt" ] }
 defmt = { version = "0.3" }
+rtt-target = { version = "0.6", features = [ "defmt" ] }
+
+serde = { version = "1", features = ["derive"], default-features = false }
+postcard = { version = "1", features = ["use-crc"] }
+heapless = "0.7.17" # pinned by postcard
+
+[features]
+std = [ "serde/std", "postcard/alloc" ]

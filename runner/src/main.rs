@@ -17,7 +17,7 @@ use probe_rs::probe::DebugProbeInfo;
 use probe_rs::probe::list::Lister;
 use probe_rs::rtt::Rtt;
 use serde::{Deserialize, Serialize};
-use test_suite::MAGIC_START_BYTE;
+use test_suite::protocol::HostToDUT;
 
 mod defmt_logger;
 
@@ -114,14 +114,14 @@ fn run_test(cfg: Config) {
     }
 
     // TODO Remove these hardcoded values
-    let fake_elf = build_firmware(fake_path);
+    // let fake_elf = build_firmware(fake_path);
     let dut_elf = build_firmware(dut_path);
 
-    flash_firmware(
-        fake_peripheral,
-        cfg.fake_peripheral.chip,
-        fake_elf.as_path(),
-    );
+    // flash_firmware(
+    //     fake_peripheral,
+    //     cfg.fake_peripheral.chip,
+    //     fake_elf.as_path(),
+    // );
     flash_firmware(dut, cfg.device_under_test.chip, dut_elf.as_path());
 
     thread::scope(|s| {
@@ -130,7 +130,7 @@ fn run_test(cfg: Config) {
         });
 
         s.spawn(|| {
-            start_fake_peripheral(fake_peripheral, fake_elf.as_path());
+            // start_fake_peripheral(fake_peripheral, fake_elf.as_path());
         });
     });
 }
@@ -181,7 +181,7 @@ fn start_fake_peripheral(probe_info: &DebugProbeInfo, elf: impl AsRef<Path>) {
     let down_channel = rtt.down_channel(0).unwrap();
 
     // Send "Start command"
-    down_channel.write(&mut core, &[MAGIC_START_BYTE]).unwrap();
+    down_channel.write(&mut core, &[42]).unwrap();
 
     // Start reading from the client
     let up_channel = rtt.up_channel(0).unwrap();
@@ -210,7 +210,8 @@ fn start_dut(probe_info: &DebugProbeInfo, elf: impl AsRef<Path>) {
     let down_channel = rtt.down_channel(0).unwrap();
 
     // Send "Start command"
-    down_channel.write(&mut core, &[MAGIC_START_BYTE]).unwrap();
+    let msg: Vec<u8> = test_suite::protocol::to_bytes_alloc(HostToDUT::Init);
+    down_channel.write(&mut core, &msg).unwrap();
 
     // Start reading from the client
     let up_channel = rtt.up_channel(0).unwrap();
