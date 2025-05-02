@@ -1,11 +1,18 @@
 use std::{
-    path::PathBuf,
-    sync::{Arc, mpsc::channel},
+    path::{Path, PathBuf},
+    sync::{
+        Arc,
+        mpsc::{Sender, channel},
+    },
     thread::{self, Thread, scope},
 };
 
 use parking_lot::FairMutex;
-use probe_rs::{Session, rtt::Rtt};
+use probe_rs::{
+    Session,
+    rtt::{DownChannel, Rtt, UpChannel},
+};
+use serde::Serialize;
 use test_suite::{
     postcard::accumulator::{CobsAccumulator, FeedResult},
     protocol::{
@@ -44,95 +51,66 @@ impl Coordinator {
         }
     }
 
+    /// Initializes RTT and sets up the defmt logger
+    fn init_channels(session: ArcSession, prefix: &str, elf: PathBuf) -> (UpChannel, DownChannel) {
+        let mut rtt = {
+            let mut guard = session.lock();
+            let mut core = guard.core(0).unwrap();
+
+            match Rtt::attach(&mut core) {
+                Ok(rtt) => rtt,
+                // Workaround for nRF52840_xxAA
+                // https://github.com/probe-rs/probe-rs/issues/2242
+                Err(probe_rs::rtt::Error::MultipleControlBlocksFound(mut rtts)) => {
+                    rtts.pop().unwrap()
+                }
+                e @ Err(_) => e.unwrap(),
+            }
+        };
+
+        let up_control = rtt.up_channels.pop().unwrap();
+        let down_control = rtt.down_channels.pop().unwrap();
+        let mut defmt = rtt.up_channels.pop().unwrap();
+
+        let prefix = prefix.to_owned();
+        thread::spawn(move || {
+            run_logger(&prefix, session, &mut defmt, elf);
+        });
+
+        (up_control, down_control)
+    }
+
+    /// Starts a thread that sends all data received on a channel to the device
+    fn create_from_host_channel<T: Serialize + Send + 'static>(
+        session: ArcSession,
+        mut down: DownChannel,
+    ) -> Sender<T> {
+        let (tx, rx) = channel();
+        thread::spawn(move || {
+            loop {
+                let data: T = rx.recv().unwrap();
+                let mut guard = session.lock();
+                let mut core = guard.core(0).unwrap();
+                let buf = to_bytes_alloc(data);
+                down.write(&mut core, &buf).unwrap();
+            }
+        });
+
+        tx
+    }
+
     pub fn run(&self) {
         scope(|s| {
-            let (mut fp_up, mut fp_down) = {
-                let mut rtt = {
-                    let mut guard = self.fp_session.lock();
-                    let mut core = guard.core(0).unwrap();
-
-                    match Rtt::attach(&mut core) {
-                        Ok(rtt) => rtt,
-                        // Workaround for nRF52840_xxAA
-                        // https://github.com/probe-rs/probe-rs/issues/2242
-                        Err(probe_rs::rtt::Error::MultipleControlBlocksFound(mut rtts)) => {
-                            rtts.pop().unwrap()
-                        }
-                        e @ Err(_) => e.unwrap(),
-                    }
-                };
-
-                let up_control = rtt.up_channels.pop().unwrap();
-                let down_control = rtt.down_channels.pop().unwrap();
-                let mut defmt = rtt.up_channels.pop().unwrap();
-
-                let fp_session = self.fp_session.clone();
-                s.spawn(move || {
-                    run_logger(" fp", fp_session, &mut defmt, self.fp_elf.as_path());
-                });
-
-                (up_control, down_control)
-            };
-
-            let (mut dut_up, mut dut_down) = {
-                let mut rtt = {
-                    let mut guard = self.dut_session.lock();
-                    let mut core = guard.core(0).unwrap();
-
-                    match Rtt::attach(&mut core) {
-                        Ok(rtt) => rtt,
-                        // Workaround for nRF52840_xxAA
-                        // https://github.com/probe-rs/probe-rs/issues/2242
-                        Err(probe_rs::rtt::Error::MultipleControlBlocksFound(mut rtts)) => {
-                            rtts.pop().unwrap()
-                        }
-                        e @ Err(_) => e.unwrap(),
-                    }
-                };
-
-                let up_control = rtt.up_channels.pop().unwrap();
-                let down_control = rtt.down_channels.pop().unwrap();
-                let mut defmt = rtt.up_channels.pop().unwrap();
-
-                let dut_session = self.dut_session.clone();
-                s.spawn(move || {
-                    run_logger("dut", dut_session, &mut defmt, self.dut_elf.as_path());
-                });
-
-                (up_control, down_control)
-            };
+            let (mut fp_up, fp_down) =
+                Self::init_channels(self.fp_session.clone(), "fp", self.fp_elf.clone());
+            let (mut dut_up, dut_down) =
+                Self::init_channels(self.dut_session.clone(), "dut", self.dut_elf.clone());
 
             // FP: Host to FP thread
-            let fp_session = self.fp_session.clone();
-            let (to_fp, to_fp_rx) = channel();
-            s.spawn(move || {
-                loop {
-                    let data: HostToFP = to_fp_rx.recv().unwrap();
-                    let mut guard = fp_session.lock();
-                    let mut core = guard.core(0).unwrap();
-                    let mut buf = to_bytes_alloc(data);
-                    fp_down.write(&mut core, &mut buf).unwrap();
-
-                    drop(core);
-                    drop(guard);
-                }
-            });
+            let to_fp = Self::create_from_host_channel(self.fp_session.clone(), fp_down);
 
             // DUT: Host to DUT thread
-            let dut_session = self.dut_session.clone();
-            let (to_dut, to_dut_rx) = channel();
-            s.spawn(move || {
-                loop {
-                    let data: HostToDUT = to_dut_rx.recv().unwrap();
-                    let mut guard = dut_session.lock();
-                    let mut core = guard.core(0).unwrap();
-                    let mut buf = to_bytes_alloc(data);
-                    dut_down.write(&mut core, &mut buf).unwrap();
-
-                    drop(core);
-                    drop(guard);
-                }
-            });
+            let to_dut = Self::create_from_host_channel(self.dut_session.clone(), dut_down);
 
             // FP: FP to Host Thread
             let fp_session = self.fp_session.clone();

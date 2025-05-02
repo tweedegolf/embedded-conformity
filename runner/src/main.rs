@@ -129,7 +129,6 @@ fn run_test(cfg: Config) {
     let fp_session = start_device(fake_peripheral, &cfg.fake_peripheral.chip);
 
     Coordinator::new(cfg, dut_session, dut_elf, fp_session, fake_elf).run();
-
 }
 
 fn build_firmware(path: impl AsRef<Path>) -> PathBuf {
@@ -173,4 +172,3 @@ fn start_device(probe_info: &DebugProbeInfo, chip: &str) -> Session {
 
     session
 }
-
