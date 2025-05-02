@@ -33,7 +33,7 @@ pub enum DUTToHost {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct HostToFP {
     pub id: u32,
-    pub command: HostToFPCommand
+    pub command: HostToFPCommand,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]

@@ -6,9 +6,12 @@
 use defmt::info;
 use embassy_executor::Spawner;
 use embassy_rp::gpio::{Input, Level, Output};
-use embassy_time::{with_timeout, Duration};
-use test_suite::{postcard::accumulator::{CobsAccumulator, FeedResult}, protocol::{send_to_host, FPToHost, HostToFP, HostToFPCommand}};
+use embassy_time::{Duration, with_timeout};
 use panic_probe as _;
+use test_suite::{
+    postcard::accumulator::{CobsAccumulator, FeedResult},
+    protocol::{FPToHost, HostToFP, HostToFPCommand, send_to_host},
+};
 
 mod pio;
 
@@ -52,7 +55,8 @@ async fn main(_spawner: Spawner) {
                         HostToFPCommand::Run(0) => {
                             run_test(async {
                                 test_one(&mut input_one).await;
-                            }).await;
+                            })
+                            .await;
                         }
                         HostToFPCommand::Run(_) => todo!(),
                     }

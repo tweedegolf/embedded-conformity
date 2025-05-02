@@ -1,6 +1,11 @@
 use core::time::Duration;
 
-use embassy_rp::{bind_interrupts, peripherals::PIO0, pio::{InterruptHandler, Pio}, pio_programs::pwm::{PioPwm, PioPwmProgram}, Peripherals};
+use embassy_rp::{
+    Peripherals, bind_interrupts,
+    peripherals::PIO0,
+    pio::{InterruptHandler, Pio},
+    pio_programs::pwm::{PioPwm, PioPwmProgram},
+};
 use embassy_time::Timer;
 
 const REFRESH_INTERVAL: u64 = 20000;
@@ -8,8 +13,6 @@ const REFRESH_INTERVAL: u64 = 20000;
 bind_interrupts!(struct Irqs {
     PIO0_IRQ_0 => InterruptHandler<PIO0>;
 });
-
-
 
 async fn pio_example(p: Peripherals) -> ! {
     let Pio {
