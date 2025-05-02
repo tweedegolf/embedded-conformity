@@ -2,7 +2,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc,
-        mpsc::{Sender, channel},
+        mpsc::{Receiver, Sender, channel},
     },
     thread::{self, Thread, scope},
 };
@@ -12,7 +12,7 @@ use probe_rs::{
     Session,
     rtt::{DownChannel, Rtt, UpChannel},
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use test_suite::{
     postcard::accumulator::{CobsAccumulator, FeedResult},
     protocol::{
@@ -81,7 +81,7 @@ impl Coordinator {
     }
 
     /// Starts a thread that sends all data received on a channel to the device
-    fn create_from_host_channel<T: Serialize + Send + 'static>(
+    fn create_sender<T: Serialize + Send + 'static>(
         session: ArcSession,
         mut down: DownChannel,
     ) -> Sender<T> {
@@ -99,113 +99,86 @@ impl Coordinator {
         tx
     }
 
-    pub fn run(&self) {
-        scope(|s| {
-            let (mut fp_up, fp_down) =
-                Self::init_channels(self.fp_session.clone(), "fp", self.fp_elf.clone());
-            let (mut dut_up, dut_down) =
-                Self::init_channels(self.dut_session.clone(), "dut", self.dut_elf.clone());
+    fn create_receiver<'a, T: Deserialize<'a> + Send + 'static>(
+        session: ArcSession,
+        mut up: UpChannel,
+    ) -> Receiver<T> {
+        let (tx, rx) = channel();
+        thread::spawn(move || {
+            let mut raw_buf = [0u8; 128];
+            let mut cobs_buf: CobsAccumulator<256> = CobsAccumulator::new();
 
-            // FP: Host to FP thread
-            let to_fp = Self::create_from_host_channel(self.fp_session.clone(), fp_down);
+            while let Ok(ct) = {
+                let mut guard = session.lock();
+                let mut core = guard.core(0).unwrap();
 
-            // DUT: Host to DUT thread
-            let to_dut = Self::create_from_host_channel(self.dut_session.clone(), dut_down);
-
-            // FP: FP to Host Thread
-            let fp_session = self.fp_session.clone();
-            let (from_fp_tx, from_fp) = channel();
-            s.spawn(move || {
-                let mut raw_buf = [0u8; 128];
-                let mut cobs_buf: CobsAccumulator<256> = CobsAccumulator::new();
-
-                while let Ok(ct) = {
-                    let mut guard = fp_session.lock();
-                    let mut core = guard.core(0).unwrap();
-
-                    fp_up.read(&mut core, &mut raw_buf)
-                } {
-                    // Finished reading input
-                    if ct == 0 {
-                        continue;
-                    }
-
-                    let buf = &raw_buf[..ct];
-                    let mut window = &buf[..];
-
-                    'cobs: while !window.is_empty() {
-                        window = match cobs_buf.feed::<FPToHost>(&window) {
-                            FeedResult::Consumed => break 'cobs,
-                            FeedResult::OverFull(new_wind) => new_wind,
-                            FeedResult::DeserError(new_wind) => new_wind,
-                            FeedResult::Success { data, remaining } => {
-                                from_fp_tx.send(data).unwrap();
-                                remaining
-                            }
-                        };
-                    }
+                up.read(&mut core, &mut raw_buf)
+            } {
+                // Finished reading input
+                if ct == 0 {
+                    continue;
                 }
-            });
 
-            // DUT: DUT to Host Thread
-            let dut_session = self.dut_session.clone();
-            let (from_dut_tx, from_dut) = channel();
-            s.spawn(move || {
-                let mut raw_buf = [0u8; 128];
-                let mut cobs_buf: CobsAccumulator<256> = CobsAccumulator::new();
+                let buf = &raw_buf[..ct];
+                let mut window = &buf[..];
 
-                while let Ok(ct) = {
-                    let mut guard = dut_session.lock();
-                    let mut core = guard.core(0).unwrap();
-
-                    dut_up.read(&mut core, &mut raw_buf)
-                } {
-                    // Finished reading input
-                    if ct == 0 {
-                        continue;
-                    }
-
-                    let buf = &raw_buf[..ct];
-                    let mut window = &buf[..];
-
-                    'cobs: while !window.is_empty() {
-                        window = match cobs_buf.feed::<DUTToHost>(&window) {
-                            FeedResult::Consumed => break 'cobs,
-                            FeedResult::OverFull(new_wind) => new_wind,
-                            FeedResult::DeserError(new_wind) => new_wind,
-                            FeedResult::Success { data, remaining } => {
-                                from_dut_tx.send(data).unwrap();
-
-                                remaining
-                            }
-                        };
-                    }
+                'cobs: while !window.is_empty() {
+                    window = match cobs_buf.feed::<T>(&window) {
+                        FeedResult::Consumed => break 'cobs,
+                        FeedResult::OverFull(new_wind) => new_wind,
+                        FeedResult::DeserError(new_wind) => new_wind,
+                        FeedResult::Success { data, remaining } => {
+                            tx.send(data).unwrap();
+                            remaining
+                        }
+                    };
                 }
-            });
-
-            println!("set up threads, sending init ...");
-
-            to_fp
-                .send(HostToFP {
-                    id: 13,
-                    command: HostToFPCommand::Init,
-                })
-                .unwrap();
-            to_dut
-                .send(HostToDUT {
-                    id: 31,
-                    command: HostToDUTCommand::Init,
-                })
-                .unwrap();
-
-            assert_eq!(FPToHost::Ack(13), from_fp.recv().unwrap());
-            assert_eq!(DUTToHost::Ack(31), from_dut.recv().unwrap());
-
-            println!("Acks Received!");
-
-            loop {
-                thread::yield_now();
             }
         });
+
+        rx
+    }
+
+    pub fn run(&self) {
+        let (fp_up, fp_down) =
+            Self::init_channels(self.fp_session.clone(), "fp", self.fp_elf.clone());
+        let (dut_up, dut_down) =
+            Self::init_channels(self.dut_session.clone(), "dut", self.dut_elf.clone());
+
+        // FP: Host to FP thread
+        let to_fp = Self::create_sender(self.fp_session.clone(), fp_down);
+
+        // DUT: Host to DUT thread
+        let to_dut = Self::create_sender(self.dut_session.clone(), dut_down);
+
+        // FP: FP to Host Thread
+        let from_fp = Self::create_receiver(self.fp_session.clone(), fp_up);
+
+        // DUT: DUT to Host Thread
+        let from_dut = Self::create_receiver(self.dut_session.clone(), dut_up);
+
+        println!("set up threads, sending init ...");
+
+        to_fp
+            .send(HostToFP {
+                id: 13,
+                command: HostToFPCommand::Init,
+            })
+            .unwrap();
+        to_dut
+            .send(HostToDUT {
+                id: 31,
+                command: HostToDUTCommand::Init,
+            })
+            .unwrap();
+
+        assert_eq!(FPToHost::Ack(13), from_fp.recv().unwrap());
+        assert_eq!(DUTToHost::Ack(31), from_dut.recv().unwrap());
+
+        println!("Acks Received!");
+
+        loop {
+            thread::yield_now();
+        }
     }
 }
