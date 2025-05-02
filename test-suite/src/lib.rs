@@ -6,6 +6,8 @@ use postcard::accumulator::{CobsAccumulator, FeedResult};
 use protocol::HostToDUT;
 use rtt_target::{ChannelMode, DownChannel, UpChannel, rtt_init, set_defmt_channel};
 
+pub use postcard;
+
 mod i2c_tests;
 pub mod protocol;
 mod sanity_tests;
@@ -52,7 +54,6 @@ pub fn init() -> Context {
 }
 
 pub fn run_tests(mut ctx: Context) {
-    // info!("DUT: Ready");
     let mut raw_buf = [0u8; 128];
     let mut cobs_buf: CobsAccumulator<256> = CobsAccumulator::new();
 

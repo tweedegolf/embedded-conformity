@@ -2,24 +2,13 @@
 
 #![no_std]
 #![no_main]
-use core::time::Duration;
 
 use defmt::info;
 use embassy_executor::Spawner;
 use embassy_rp::gpio::{Level, Output};
-use embassy_rp::peripherals::PIO0;
-use embassy_rp::pio::{InterruptHandler, Pio};
-use embassy_rp::pio_programs::pwm::{PioPwm, PioPwmProgram};
-use embassy_rp::{Peripherals, bind_interrupts};
-use embassy_time::Timer;
-use panic_probe as _;
-use test_suite::wait_for_host;
+use test_suite::{postcard::accumulator::{CobsAccumulator, FeedResult}, protocol::HostToFP};
 
-const REFRESH_INTERVAL: u64 = 20000;
-
-bind_interrupts!(struct Irqs {
-    PIO0_IRQ_0 => InterruptHandler<PIO0>;
-});
+mod pio;
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
@@ -32,31 +21,37 @@ async fn main(_spawner: Spawner) {
     let mut led = Output::new(p.PIN_13, Level::Low);
     led.set_high();
 
-    wait_for_host(&mut ctx.channels.down[0]);
-    info!("FP: Ready");
+    let mut raw_buf = [0u8; 128];
+    let mut cobs_buf: CobsAccumulator<256> = CobsAccumulator::new();
 
-    panic!("woops");
-
+    // Continously read the RTT buffer and decode the messages
     loop {
-        Timer::after_millis(100).await;
-        led.toggle();
+        let ct = ctx.channels.down.read(&mut raw_buf);
+        // Finished reading input
+        if ct == 0 {
+            continue;
+        }
+
+        let buf = &raw_buf[..ct];
+        let mut window = &buf[..];
+
+        'cobs: while !window.is_empty() {
+            window = match cobs_buf.feed::<HostToFP>(&window) {
+                FeedResult::Consumed => break 'cobs,
+                FeedResult::OverFull(new_wind) => new_wind,
+                FeedResult::DeserError(new_wind) => new_wind,
+                FeedResult::Success { data, remaining } => {
+                    // Do something with `data: MyData` here.
+                    match data {
+                        HostToFP::Init => info!("Init Ready"),
+                        HostToFP::Run(_) => todo!(),
+                    }
+
+                    remaining
+                }
+            };
+        }
     }
 }
 
-async fn pio_example(p: Peripherals) {
-    let Pio {
-        mut common, sm0, ..
-    } = Pio::new(p.PIO0, Irqs);
 
-    let prg = PioPwmProgram::new(&mut common);
-    let mut pwm_pio = PioPwm::new(&mut common, sm0, p.PIN_13, &prg);
-    pwm_pio.set_period(Duration::from_micros(REFRESH_INTERVAL));
-    pwm_pio.start();
-
-    let mut duration = 0;
-    loop {
-        duration = (duration + 1) % 1000;
-        pwm_pio.write(Duration::from_micros(duration));
-        Timer::after_millis(1).await;
-    }
-}
