@@ -5,8 +5,10 @@
 
 use defmt::info;
 use embassy_executor::Spawner;
-use embassy_rp::gpio::{Level, Output};
-use test_suite::{postcard::accumulator::{CobsAccumulator, FeedResult}, protocol::HostToFP};
+use embassy_rp::gpio::{Input, Level, Output};
+use embassy_time::{with_timeout, Duration};
+use test_suite::{postcard::accumulator::{CobsAccumulator, FeedResult}, protocol::{send_to_host, FPToHost, HostToFP, HostToFPCommand}};
+use panic_probe as _;
 
 mod pio;
 
@@ -20,6 +22,8 @@ async fn main(_spawner: Spawner) {
 
     let mut led = Output::new(p.PIN_13, Level::Low);
     led.set_high();
+
+    let mut input_one = Input::new(p.PIN_10, embassy_rp::gpio::Pull::None);
 
     let mut raw_buf = [0u8; 128];
     let mut cobs_buf: CobsAccumulator<256> = CobsAccumulator::new();
@@ -41,10 +45,16 @@ async fn main(_spawner: Spawner) {
                 FeedResult::OverFull(new_wind) => new_wind,
                 FeedResult::DeserError(new_wind) => new_wind,
                 FeedResult::Success { data, remaining } => {
+                    send_to_host(FPToHost::Ack(data.id), &mut ctx.channels.up);
                     // Do something with `data: MyData` here.
-                    match data {
-                        HostToFP::Init => info!("Init Ready"),
-                        HostToFP::Run(_) => todo!(),
+                    match data.command {
+                        HostToFPCommand::Init => info!("Init Ready"),
+                        HostToFPCommand::Run(0) => {
+                            run_test(async {
+                                test_one(&mut input_one).await;
+                            }).await;
+                        }
+                        HostToFPCommand::Run(_) => todo!(),
                     }
 
                     remaining
@@ -54,4 +64,14 @@ async fn main(_spawner: Spawner) {
     }
 }
 
+async fn run_test<F: Future>(fut: F) {
+    let res = with_timeout(Duration::from_millis(10), fut).await;
 
+    res.unwrap();
+
+    info!("test okay");
+}
+
+async fn test_one(input: &mut Input<'_>) {
+    input.wait_for_high().await;
+}

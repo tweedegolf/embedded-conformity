@@ -1,7 +1,7 @@
 use std::fs::{self, canonicalize};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::thread;
+use std::thread::{self, Thread};
 
 use cargo::core::Workspace;
 use cargo::core::compiler::CompileMode;
@@ -9,16 +9,18 @@ use cargo::ops::CompileOptions;
 use cargo::util::interning::InternedString;
 use cargo::{GlobalContext, ops};
 use clap::{Parser, Subcommand};
+use coordinator::Coordinator;
 use defmt_logger::run_logger;
-use probe_rs::Permissions;
 use probe_rs::config::TargetSelector;
 use probe_rs::flashing::{Format, download_file};
 use probe_rs::probe::DebugProbeInfo;
 use probe_rs::probe::list::Lister;
 use probe_rs::rtt::Rtt;
+use probe_rs::{Permissions, Session};
 use serde::{Deserialize, Serialize};
 use test_suite::protocol::{HostToDUT, HostToFP};
 
+mod coordinator;
 mod defmt_logger;
 
 #[derive(Parser)]
@@ -37,13 +39,13 @@ enum Commands {
     ExampleConfig,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 struct Config {
     device_under_test: DeviceInfo,
     fake_peripheral: DeviceInfo,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 struct DeviceInfo {
     firmware_path: PathBuf,
     serial: String,
@@ -103,12 +105,12 @@ fn run_test(cfg: Config) {
         .find(|el| el.serial_number.as_deref() == Some(&cfg.device_under_test.serial))
         .expect("Could not find dut with uuid");
 
-    let mut fake_path = cfg.fake_peripheral.firmware_path;
+    let mut fake_path = cfg.fake_peripheral.firmware_path.clone();
     if !fake_path.ends_with("Cargo.toml") {
         fake_path.push("Cargo.toml");
     }
 
-    let mut dut_path = cfg.device_under_test.firmware_path;
+    let mut dut_path = cfg.device_under_test.firmware_path.clone();
     if !dut_path.ends_with("Cargo.toml") {
         dut_path.push("Cargo.toml");
     }
@@ -118,20 +120,16 @@ fn run_test(cfg: Config) {
 
     flash_firmware(
         fake_peripheral,
-        cfg.fake_peripheral.chip,
+        &cfg.fake_peripheral.chip,
         fake_elf.as_path(),
     );
-    flash_firmware(dut, cfg.device_under_test.chip, dut_elf.as_path());
+    flash_firmware(dut, &cfg.device_under_test.chip, dut_elf.as_path());
 
-    thread::scope(|s| {
-        s.spawn(|| {
-            start_dut(dut, dut_elf.as_path());
-        });
+    let dut_session = start_device(dut, &cfg.device_under_test.chip);
+    let fp_session = start_device(fake_peripheral, &cfg.fake_peripheral.chip);
 
-        s.spawn(|| {
-            start_fake_peripheral(fake_peripheral, fake_elf.as_path());
-        });
-    });
+    Coordinator::new(cfg, dut_session, dut_elf, fp_session, fake_elf).run();
+
 }
 
 fn build_firmware(path: impl AsRef<Path>) -> PathBuf {
@@ -165,55 +163,14 @@ fn flash_firmware(
     download_file(&mut session, elf, Format::Elf).unwrap();
 }
 
-fn start_fake_peripheral(probe_info: &DebugProbeInfo, elf: impl AsRef<Path>) {
-    // todo: what here is absolutely necessary
+fn start_device(probe_info: &DebugProbeInfo, chip: &str) -> Session {
     let probe = probe_info.open().unwrap();
-    let mut session = probe.attach("rp2040", Permissions::default()).unwrap();
-    let mut core = session.core(0).unwrap();
+    let mut session = probe.attach(chip, Permissions::default()).unwrap();
+    {
+        let mut core = session.core(0).unwrap();
+        core.reset().unwrap();
+    }
 
-    // TODO: Is this absolutely necessary?
-    core.reset().unwrap();
-    // core.run().unwrap();
-
-    let mut rtt = Rtt::attach(&mut core).unwrap();
-
-    let down_channel = rtt.down_channel(0).unwrap();
-
-    // Send "Start command"
-    let msg: Vec<u8> = test_suite::protocol::to_bytes_alloc(HostToFP::Init);
-    down_channel.write(&mut core, &msg).unwrap();
-
-    // Start reading from the client
-    let up_channel = rtt.up_channel(0).unwrap();
-    run_logger("fp", &mut core, up_channel, elf);
+    session
 }
 
-fn start_dut(probe_info: &DebugProbeInfo, elf: impl AsRef<Path>) {
-    // TODO: What here is absolutely necessary
-    let probe = probe_info.open().unwrap();
-    let mut session = probe
-        .attach("nRF52840_xxAA", Permissions::default())
-        .unwrap();
-    let mut core = session.core(0).unwrap();
-
-    // TODO: Is this absolutely necessary?
-    core.reset().unwrap();
-
-    let mut rtt = match Rtt::attach(&mut core) {
-        Ok(rtt) => rtt,
-        // Workaround for nRF52840_xxAA
-        // https://github.com/probe-rs/probe-rs/issues/2242
-        Err(probe_rs::rtt::Error::MultipleControlBlocksFound(mut rtts)) => rtts.pop().unwrap(),
-        e @ Err(_) => e.unwrap(),
-    };
-
-    let down_channel = rtt.down_channel(0).unwrap();
-
-    // Send "Start command"
-    let msg: Vec<u8> = test_suite::protocol::to_bytes_alloc(HostToDUT::Init);
-    down_channel.write(&mut core, &msg).unwrap();
-
-    // Start reading from the client
-    let up_channel = rtt.up_channel(0).unwrap();
-    run_logger("dut", &mut core, up_channel, elf);
-}

@@ -12,8 +12,10 @@ async fn main(_spawner: Spawner) {
 
     let mut led = Output::new(p.P0_13, Level::Low, OutputDrive::Standard);
 
+    let mut output = Output::new(p.P0_31, Level::Low, OutputDrive::Standard);
+
     let ctx = test_suite::init();
-    test_suite::run_tests(ctx);
+    test_suite::run_tests(ctx, &mut output);
 
     loop {
         led.set_high();

@@ -3819,6 +3819,7 @@ dependencies = [
  "clap",
  "defmt-decoder",
  "log",
+ "parking_lot",
  "probe-rs",
  "serde",
  "test-suite",

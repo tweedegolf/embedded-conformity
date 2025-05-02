@@ -1,10 +1,6 @@
+use embedded_hal::digital::OutputPin;
 
-mod test_1 {
-    fn dut() {
-
-    }
-
-    fn fp() {
-
-    }
+pub fn test_one<T: OutputPin>(output: &mut T) -> Result<(), T::Error> {
+    output.set_high()
 }
+

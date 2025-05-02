@@ -1,12 +1,16 @@
 #![no_std]
 
 use defmt::info;
-use embedded_hal::i2c::{Error, I2c};
+use embedded_hal::{
+    digital::OutputPin,
+    i2c::{Error, I2c},
+};
 use postcard::accumulator::{CobsAccumulator, FeedResult};
-use protocol::HostToDUT;
+use protocol::{DUTToHost, HostToDUT, HostToDUTCommand, send_to_host};
 use rtt_target::{ChannelMode, DownChannel, UpChannel, rtt_init, set_defmt_channel};
 
 pub use postcard;
+use sanity_tests::test_one;
 
 mod i2c_tests;
 pub mod protocol;
@@ -53,7 +57,7 @@ pub fn init() -> Context {
     }
 }
 
-pub fn run_tests(mut ctx: Context) {
+pub fn run_tests<T: OutputPin>(mut ctx: Context, output: &mut T) {
     let mut raw_buf = [0u8; 128];
     let mut cobs_buf: CobsAccumulator<256> = CobsAccumulator::new();
 
@@ -73,10 +77,13 @@ pub fn run_tests(mut ctx: Context) {
                 FeedResult::OverFull(new_wind) => new_wind,
                 FeedResult::DeserError(new_wind) => new_wind,
                 FeedResult::Success { data, remaining } => {
-                    // Do something with `data: MyData` here.
-                    match data {
-                        HostToDUT::Init => info!("Init Ready"),
-                        HostToDUT::Run(_) => todo!(),
+                    // Send ack
+                    send_to_host(DUTToHost::Ack(data.id), &mut ctx.channels.up);
+
+                    match data.command {
+                        HostToDUTCommand::Init => info!("Init Ready"),
+                        HostToDUTCommand::Run(0) => test_one(output).unwrap(),
+                        HostToDUTCommand::Run(_) => todo!(),
                     }
 
                     remaining

@@ -12,3 +12,4 @@ defmt-decoder = "1"
 log = "0.4"
 serde = { version = "1", features = [ "derive" ] }
 toml = "0.8"
+parking_lot = "0.12"

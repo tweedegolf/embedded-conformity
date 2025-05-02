@@ -9,28 +9,42 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "std")]
 extern crate alloc;
 
-#[derive(Serialize, Deserialize)]
-pub enum HostToDUT {
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct HostToDUT {
+    pub id: u32,
+    pub command: HostToDUTCommand,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub enum HostToDUTCommand {
     /// Run a specific test
     Init,
     Run(u32),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum DUTToHost {
+    Ack(u32),
     TestFailure(u32),
     Success(u32),
     Finished,
 }
 
-#[derive(Serialize, Deserialize)]
-pub enum HostToFP {
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct HostToFP {
+    pub id: u32,
+    pub command: HostToFPCommand
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub enum HostToFPCommand {
     Init,
     Run(u32),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum FPToHost {
+    Ack(u32),
     TestFailure(u32),
     Success(u32),
 }
