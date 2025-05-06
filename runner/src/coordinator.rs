@@ -99,10 +99,10 @@ impl Coordinator {
         tx
     }
 
-    fn create_receiver<'a, T: Deserialize<'a> + Send + 'static>(
-        session: ArcSession,
-        mut up: UpChannel,
-    ) -> Receiver<T> {
+    fn create_receiver<T>(session: ArcSession, mut up: UpChannel) -> Receiver<T>
+    where
+        T: for<'de> Deserialize<'de> + Send + 'static,
+    {
         let (tx, rx) = channel();
         thread::spawn(move || {
             let mut raw_buf = [0u8; 128];

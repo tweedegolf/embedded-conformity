@@ -167,6 +167,8 @@ fn start_device(probe_info: &DebugProbeInfo, chip: &str) -> Session {
     let mut session = probe.attach(chip, Permissions::default()).unwrap();
     {
         let mut core = session.core(0).unwrap();
+
+        // why ???
         core.reset().unwrap();
     }
 
