@@ -17,7 +17,6 @@ use probe_rs::probe::DebugProbeInfo;
 use probe_rs::probe::list::Lister;
 use probe_rs::{Permissions, Session};
 use serde::{Deserialize, Serialize};
-use tracing_log::LogTracer;
 
 mod coordinator;
 mod defmt_logger;
@@ -61,8 +60,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let subscriber = tracing_subscriber::FmtSubscriber::new();
     tracing::subscriber::set_global_default(subscriber)?;
-
-    LogTracer::init()?;
 
     match cli.command {
         Commands::List => {

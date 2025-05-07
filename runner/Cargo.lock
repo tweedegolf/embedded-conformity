@@ -3893,15 +3893,12 @@ dependencies = [
  "clap",
  "defmt-decoder",
  "defmt-parser",
- "log",
  "parking_lot",
  "probe-rs",
  "serde",
  "test-suite",
  "toml",
  "tracing",
- "tracing-core",
- "tracing-log",
  "tracing-subscriber",
 ]
 

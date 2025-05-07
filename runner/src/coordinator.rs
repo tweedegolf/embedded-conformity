@@ -2,9 +2,11 @@ use std::{
     collections::HashSet,
     path::{Path, PathBuf},
     sync::{
-        mpsc::{channel, Receiver, Sender, TryRecvError}, Arc
+        Arc,
+        mpsc::{Receiver, Sender, TryRecvError, channel},
     },
-    thread::{self, scope, sleep, yield_now, Thread}, time::Duration,
+    thread::{self, Thread, scope, sleep, yield_now},
+    time::Duration,
 };
 
 use parking_lot::FairMutex;
@@ -21,7 +23,10 @@ use test_suite::{
     },
 };
 
-use crate::{Config, defmt_logger::run_logger};
+use crate::{
+    Config,
+    defmt_logger::{Target, run_logger},
+};
 
 pub type ArcSession = Arc<FairMutex<Session>>;
 
@@ -53,7 +58,11 @@ impl Coordinator {
     }
 
     /// Initializes RTT and sets up the defmt logger
-    fn init_channels(session: ArcSession, prefix: &str, elf: PathBuf) -> (UpChannel, DownChannel) {
+    fn init_channels(
+        session: ArcSession,
+        target: Target,
+        elf: PathBuf,
+    ) -> (UpChannel, DownChannel) {
         let mut rtt = {
             let mut guard = session.lock();
             let mut core = guard.core(0).unwrap();
@@ -73,9 +82,8 @@ impl Coordinator {
         let down_control = rtt.down_channels.pop().unwrap();
         let mut defmt = rtt.up_channels.pop().unwrap();
 
-        let prefix = prefix.to_owned();
         thread::spawn(move || {
-            run_logger(&prefix, session, &mut defmt, elf);
+            run_logger(target, session, &mut defmt, elf);
         });
 
         (up_control, down_control)
@@ -141,10 +149,16 @@ impl Coordinator {
     }
 
     pub fn run(&self) {
-        let (fp_up, fp_down) =
-            Self::init_channels(self.fp_session.clone(), "fp", self.fp_elf.clone());
-        let (dut_up, dut_down) =
-            Self::init_channels(self.dut_session.clone(), "dut", self.dut_elf.clone());
+        let (fp_up, fp_down) = Self::init_channels(
+            self.fp_session.clone(),
+            Target::FakePeripheral,
+            self.fp_elf.clone(),
+        );
+        let (dut_up, dut_down) = Self::init_channels(
+            self.dut_session.clone(),
+            Target::DeviceUnderTest,
+            self.dut_elf.clone(),
+        );
 
         // FP: Host to FP thread
         let to_fp = Self::create_sender(self.fp_session.clone(), fp_down);

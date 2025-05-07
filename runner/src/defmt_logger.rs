@@ -4,16 +4,20 @@ use defmt_decoder::{
     DecodeError, Frame, Locations, Table,
     log::format::{Formatter, FormatterConfig},
 };
-use log::Record;
 use probe_rs::{Core, rtt::UpChannel};
-use tracing::warn;
-use tracing_log::AsTrace;
+use tracing::{Level, debug, error, event, info, trace, warn};
 
 use crate::coordinator::ArcSession;
 
 const READ_BUFFER_SIZE: usize = 1024;
 
-pub fn run_logger(prefix: &str, session: ArcSession, up: &mut UpChannel, elf: impl AsRef<Path>) {
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Target {
+    FakePeripheral,
+    DeviceUnderTest,
+}
+
+pub fn run_logger(target: Target, session: ArcSession, up: &mut UpChannel, elf: impl AsRef<Path>) {
     // based on: https://github.com/knurling-rs/defmt/blob/66250db0584a8bf96323f2301f778f8f25d140a8/print/src/main.rs#L183
 
     // read and parse elf file
@@ -50,14 +54,14 @@ pub fn run_logger(prefix: &str, session: ArcSession, up: &mut UpChannel, elf: im
             match stream_decoder.decode() {
                 Ok(frame) => {
                     let location_info = location_info(&locs, &frame, &current_dir);
-                    log_frame(prefix, frame, location_info);
+                    log_frame(target, frame, location_info);
                 }
                 Err(DecodeError::UnexpectedEof) => break,
                 Err(DecodeError::Malformed) => match table.encoding().can_recover() {
                     false => panic!("malformed defmt, unrecoverable"),
                     true => {
                         // log error
-                        eprintln!("{prefix} malformed frame");
+                        eprintln!(" malformed frame");
                         continue;
                     }
                 },
@@ -85,21 +89,104 @@ fn location_info(locs: &Option<Locations>, frame: &Frame, current_dir: &Path) ->
     (file, line, mod_path)
 }
 
-fn log_frame(target: &str, frame: Frame<'_>, loc: LocationInfo) {
-    let level = match frame.level() {
-        Some(defmt_parser::Level::Trace) => log::Level::Trace,
-        Some(defmt_parser::Level::Debug) => log::Level::Debug,
-        Some(defmt_parser::Level::Info) => log::Level::Info,
-        None | Some(defmt_parser::Level::Warn) => log::Level::Warn,
-        Some(defmt_parser::Level::Error) => log::Level::Error,
-    };
+fn log_frame(target: Target, frame: Frame<'_>, loc: LocationInfo) {
+    const FP: &str = "fp";
+    const DUT: &str = "dut";
 
-    log::logger().log(&Record::builder()
-        .args(format_args!("{}", frame.display_message()))
-        .target(target)
-        .level(level)
-        .module_path(loc.2.as_deref())
-        .file(loc.0.as_deref())
-        .line(loc.1)
-        .build());
+    match target {
+        Target::FakePeripheral => match frame.level() {
+            Some(defmt_parser::Level::Trace) => event!(
+                target: FP,
+                Level::TRACE,
+                file = loc.0,
+                line = loc.1,
+                module = loc.2,
+                "{}",
+                frame.display_message()
+            ),
+            Some(defmt_parser::Level::Debug) => event!(
+                target: FP,
+                Level::DEBUG,
+                file = loc.0,
+                line = loc.1,
+                module = loc.2,
+                "{}",
+                frame.display_message()
+            ),
+            Some(defmt_parser::Level::Info) => event!(
+                target: FP,
+                Level::INFO,
+                file = loc.0,
+                line = loc.1,
+                module = loc.2,
+                "{}",
+                frame.display_message()
+            ),
+            None | Some(defmt_parser::Level::Warn) => event!(
+                target: FP,
+                Level::WARN,
+                file = loc.0,
+                line = loc.1,
+                module = loc.2,
+                "{}",
+                frame.display_message()
+            ),
+            Some(defmt_parser::Level::Error) => event!(
+                target: FP,
+                Level::ERROR,
+                file = loc.0,
+                line = loc.1,
+                module = loc.2,
+                "{}",
+                frame.display_message()
+            ),
+        },
+        Target::DeviceUnderTest => match frame.level() {
+            Some(defmt_parser::Level::Trace) => event!(
+                target: DUT,
+                Level::TRACE,
+                file = loc.0,
+                line = loc.1,
+                module = loc.2,
+                "{}",
+                frame.display_message()
+            ),
+            Some(defmt_parser::Level::Debug) => event!(
+                target: DUT,
+                Level::DEBUG,
+                file = loc.0,
+                line = loc.1,
+                module = loc.2,
+                "{}",
+                frame.display_message()
+            ),
+            Some(defmt_parser::Level::Info) => event!(
+                target: DUT,
+                Level::INFO,
+                file = loc.0,
+                line = loc.1,
+                module = loc.2,
+                "{}",
+                frame.display_message()
+            ),
+            None | Some(defmt_parser::Level::Warn) => event!(
+                target: DUT,
+                Level::WARN,
+                file = loc.0,
+                line = loc.1,
+                module = loc.2,
+                "{}",
+                frame.display_message()
+            ),
+            Some(defmt_parser::Level::Error) => event!(
+                target: DUT,
+                Level::ERROR,
+                file = loc.0,
+                line = loc.1,
+                module = loc.2,
+                "{}",
+                frame.display_message()
+            ),
+        },
+    }
 }
