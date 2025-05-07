@@ -1,7 +1,8 @@
+use core::fmt;
+use std::error::Error;
 use std::fs::{self, canonicalize};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::thread::{self, Thread};
 
 use cargo::core::Workspace;
 use cargo::core::compiler::CompileMode;
@@ -10,15 +11,13 @@ use cargo::util::interning::InternedString;
 use cargo::{GlobalContext, ops};
 use clap::{Parser, Subcommand};
 use coordinator::Coordinator;
-use defmt_logger::run_logger;
 use probe_rs::config::TargetSelector;
 use probe_rs::flashing::{Format, download_file};
 use probe_rs::probe::DebugProbeInfo;
 use probe_rs::probe::list::Lister;
-use probe_rs::rtt::Rtt;
 use probe_rs::{Permissions, Session};
 use serde::{Deserialize, Serialize};
-use test_suite::protocol::{HostToDUT, HostToFP};
+use tracing_log::LogTracer;
 
 mod coordinator;
 mod defmt_logger;
@@ -57,8 +56,13 @@ struct DeviceInfo {
 // 3. Start Tests, https://docs.rs/rtt-target/latest/rtt_target/#reading
 // 4. Report Status, use defmt and rtt to read back from the chips?
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
+
+    let subscriber = tracing_subscriber::FmtSubscriber::new();
+    tracing::subscriber::set_global_default(subscriber)?;
+
+    LogTracer::init()?;
 
     match cli.command {
         Commands::List => {
@@ -89,6 +93,8 @@ fn main() {
             println!("{res}")
         }
     }
+
+    Ok(())
 }
 
 fn run_test(cfg: Config) {
@@ -115,8 +121,8 @@ fn run_test(cfg: Config) {
         dut_path.push("Cargo.toml");
     }
 
-    let fake_elf = build_firmware(fake_path);
-    let dut_elf = build_firmware(dut_path);
+    let fake_elf = build_firmware(fake_path.as_path());
+    let dut_elf = build_firmware(dut_path.as_path());
 
     flash_firmware(
         fake_peripheral,
@@ -131,7 +137,8 @@ fn run_test(cfg: Config) {
     Coordinator::new(cfg, dut_session, dut_elf, fp_session, fake_elf).run();
 }
 
-fn build_firmware(path: impl AsRef<Path>) -> PathBuf {
+#[tracing::instrument]
+fn build_firmware(path: &Path) -> PathBuf {
     let mut gctx = GlobalContext::default().unwrap();
     // makes sure the correct `.cargo/config` is loaded
     gctx.reload_rooted_at(&path).unwrap();
@@ -140,7 +147,7 @@ fn build_firmware(path: impl AsRef<Path>) -> PathBuf {
     let ws = Workspace::new(&path, &gctx).unwrap();
     let mut opts = CompileOptions::new(&gctx, CompileMode::Build).unwrap();
 
-    opts.build_config.requested_profile = InternedString::new("release");
+    opts.build_config.requested_profile = InternedString::new("dev");
 
     let mut comp = ops::compile(&ws, &opts).unwrap();
     assert!(comp.binaries.len() == 1);
@@ -148,12 +155,13 @@ fn build_firmware(path: impl AsRef<Path>) -> PathBuf {
     comp.binaries.pop().unwrap().path
 }
 
+#[tracing::instrument]
 fn flash_firmware(
     probe_info: &DebugProbeInfo,
-    target: impl Into<TargetSelector>,
-    elf: impl AsRef<Path>,
+    target: impl Into<TargetSelector> + fmt::Debug,
+    elf: &Path,
 ) {
-    assert!(elf.as_ref().exists(), "Elf path does not exist");
+    assert!(elf.exists(), "Elf path does not exist");
 
     let probe = probe_info.open().unwrap();
 
@@ -162,6 +170,7 @@ fn flash_firmware(
     download_file(&mut session, elf, Format::Elf).unwrap();
 }
 
+#[tracing::instrument]
 fn start_device(probe_info: &DebugProbeInfo, chip: &str) -> Session {
     let probe = probe_info.open().unwrap();
     let mut session = probe.attach(chip, Permissions::default()).unwrap();
