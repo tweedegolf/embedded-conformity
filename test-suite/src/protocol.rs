@@ -3,16 +3,30 @@ use postcard::{
     ser_flavors::{Cobs, HVec},
     serialize_with_flavor,
 };
+
 use rtt_target::UpChannel;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "std")]
 extern crate alloc;
+#[cfg(feature = "std")]
+use rand::{RngCore, rngs::ThreadRng};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct HostToDUT {
     pub id: u32,
     pub command: HostToDUTCommand,
+}
+
+#[cfg(feature = "std")]
+impl HostToDUT {
+    pub fn new(command: HostToDUTCommand) -> Self {
+        let mut rng = rand::rng();
+        Self {
+            id: rng.next_u32(),
+            command,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -34,6 +48,17 @@ pub enum DUTToHost {
 pub struct HostToFP {
     pub id: u32,
     pub command: HostToFPCommand,
+}
+
+#[cfg(feature = "std")]
+impl HostToFP {
+    pub fn new(command: HostToFPCommand) -> Self {
+        let mut rng = rand::rng();
+        Self {
+            id: rng.next_u32(),
+            command,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]

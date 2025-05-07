@@ -1,10 +1,10 @@
 use std::{
+    collections::HashSet,
     path::{Path, PathBuf},
     sync::{
-        Arc,
-        mpsc::{Receiver, Sender, channel},
+        mpsc::{channel, Receiver, Sender, TryRecvError}, Arc
     },
-    thread::{self, Thread, scope},
+    thread::{self, scope, sleep, yield_now, Thread}, time::Duration,
 };
 
 use parking_lot::FairMutex;
@@ -14,6 +14,7 @@ use probe_rs::{
 };
 use serde::{Deserialize, Serialize};
 use test_suite::{
+    NUM_TESTS,
     postcard::accumulator::{CobsAccumulator, FeedResult},
     protocol::{
         DUTToHost, FPToHost, HostToDUT, HostToDUTCommand, HostToFP, HostToFPCommand, to_bytes_alloc,
@@ -157,8 +158,6 @@ impl Coordinator {
         // DUT: DUT to Host Thread
         let from_dut = Self::create_receiver(self.dut_session.clone(), dut_up);
 
-        println!("set up threads, sending init ...");
-
         to_fp
             .send(HostToFP {
                 id: 13,
@@ -175,10 +174,63 @@ impl Coordinator {
         assert_eq!(FPToHost::Ack(13), from_fp.recv().unwrap());
         assert_eq!(DUTToHost::Ack(31), from_dut.recv().unwrap());
 
-        println!("Acks Received!");
+        let mut fp_acks = HashSet::new();
+        let mut dut_acks = HashSet::new();
+        for n in 0..NUM_TESTS {
+            let fp_msg = HostToFP::new(HostToFPCommand::Run(n));
+            let dut_msg = HostToDUT::new(HostToDUTCommand::Run(n));
+            fp_acks.insert(fp_msg.id);
+            dut_acks.insert(dut_msg.id);
+
+            to_fp.send(fp_msg).unwrap();
+            to_dut.send(dut_msg).unwrap();
+
+            let mut fp_success = false;
+            let mut dut_success = false;
+
+            'inner: loop {
+                // TODO: Timeout
+                match from_fp.try_recv() {
+                    Ok(msg) => match msg {
+                        FPToHost::Ack(id) => {
+                            assert!(fp_acks.remove(&id));
+                        }
+                        FPToHost::TestFailure(n) => println!("FRM FP: Test {n} failed"),
+                        FPToHost::Success(gn) => {
+                            assert_eq!(n, gn);
+                            fp_success = true;
+                        }
+                    },
+                    Err(TryRecvError::Empty) => {}
+                    Err(TryRecvError::Disconnected) => panic!("FP Disconnected"),
+                }
+
+                match from_dut.try_recv() {
+                    Ok(msg) => match msg {
+                        DUTToHost::Ack(id) => {
+                            assert!(dut_acks.remove(&id));
+                        }
+                        DUTToHost::TestFailure(n) => println!("FRM DT: Test {n} failed"),
+                        DUTToHost::Success(gn) => {
+                            assert_eq!(n, gn);
+                            dut_success = true;
+                        }
+                        DUTToHost::Finished => todo!(),
+                    },
+                    Err(TryRecvError::Empty) => {}
+                    Err(TryRecvError::Disconnected) => panic!("FP Disconnected"),
+                }
+
+                if fp_success && dut_success {
+                    break 'inner;
+                }
+            }
+
+            println!("Test {n} succeeded");
+        }
 
         loop {
-            thread::yield_now();
+            sleep(Duration::from_secs(3600));
         }
     }
 }

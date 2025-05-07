@@ -1,5 +1,3 @@
-//! This example shows how to create a pwm using the PIO module in the RP2040 chip.
-
 #![no_std]
 #![no_main]
 
@@ -40,10 +38,10 @@ async fn main(_spawner: Spawner) {
         }
 
         let buf = &raw_buf[..ct];
-        let mut window = &buf[..];
+        let mut window = buf;
 
         'cobs: while !window.is_empty() {
-            window = match cobs_buf.feed::<HostToFP>(&window) {
+            window = match cobs_buf.feed::<HostToFP>(window) {
                 FeedResult::Consumed => break 'cobs,
                 FeedResult::OverFull(new_wind) => new_wind,
                 FeedResult::DeserError(new_wind) => new_wind,
@@ -57,6 +55,8 @@ async fn main(_spawner: Spawner) {
                                 test_one(&mut input_one).await;
                             })
                             .await;
+
+                            send_to_host(FPToHost::Success(0), &mut ctx.channels.up);
                         }
                         HostToFPCommand::Run(_) => todo!(),
                     }
@@ -69,11 +69,9 @@ async fn main(_spawner: Spawner) {
 }
 
 async fn run_test<F: Future>(fut: F) {
-    let res = with_timeout(Duration::from_millis(10), fut).await;
+    let res = with_timeout(Duration::from_millis(5000), fut).await;
 
     res.unwrap();
-
-    info!("test okay");
 }
 
 async fn test_one(input: &mut Input<'_>) {

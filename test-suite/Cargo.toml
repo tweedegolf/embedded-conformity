@@ -7,10 +7,13 @@ edition = "2024"
 embedded-hal = "1"
 defmt = { version = "0.3" }
 rtt-target = { version = "0.6", features = [ "defmt" ] }
+embassy-executor = { version = "0.7", features = ["defmt"] }
 
 serde = { version = "1", features = ["derive"], default-features = false }
 postcard = { version = "1", features = ["use-crc"] }
 heapless = "0.7.17" # pinned by postcard
 
+rand = { optional = true, version = "0.9.1" }
+
 [features]
-std = [ "serde/std", "postcard/alloc" ]
+std = [ "serde/std", "postcard/alloc", "rand" ]
