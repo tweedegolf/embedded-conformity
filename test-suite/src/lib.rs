@@ -2,18 +2,27 @@
 
 use core::fmt;
 
-use defmt::{error, info, Debug2Format};
-use embedded_hal::digital::OutputPin;
+use defmt::{Debug2Format, error, info};
+use embedded_hal::{digital::OutputPin, i2c::I2c};
 use postcard::accumulator::{CobsAccumulator, FeedResult};
-use protocol::{DUTToHost, HostToDUT, HostToDUTCommand, send_to_host};
+use protocol::{
+    DUTToHost, FPToHost, HostToDUT, HostToDUTCommand, HostToFP, HostToFPCommand, send_to_host,
+};
 use rtt_target::{ChannelMode, DownChannel, UpChannel, rtt_init, set_defmt_channel};
 
 pub use postcard;
-use sanity_tests::TestOne;
+use sanity_tests::*;
+use serde::Deserialize;
 
-mod i2c_tests;
+pub mod i2c_tests;
 pub mod protocol;
 mod sanity_tests;
+use i2c_tests::i2c_test_simple;
+
+#[cfg(feature = "fp")]
+pub use embassy_rp;
+#[cfg(feature = "fp")]
+use embassy_rp::{gpio::Input, i2c::Instance, i2c_slave::I2cSlave};
 
 pub struct Channels {
     pub up: UpChannel,
@@ -56,9 +65,61 @@ pub fn init() -> Context {
     }
 }
 
-pub const NUM_TESTS: u32 = 1;
+pub const NUM_TESTS: u32 = 2;
 
-pub fn run_tests<T: OutputPin>(mut ctx: Context, output: &mut T) {
+fn read_cobs<T: for<'de> Deserialize<'de>>(down: &mut DownChannel, mut fun: impl FnMut(T)) -> ! {
+    let mut raw_buf = [0u8; 128];
+    let mut cobs_buf: CobsAccumulator<256> = CobsAccumulator::new();
+
+    loop {
+        let ct = down.read(&mut raw_buf);
+        // Finished reading input
+        if ct == 0 {
+            continue;
+        }
+
+        let buf = &raw_buf[..ct];
+        let mut window = buf;
+
+        'cobs: while !window.is_empty() {
+            window = match cobs_buf.feed::<T>(window) {
+                FeedResult::Consumed => break 'cobs,
+                FeedResult::OverFull(new_wind) => new_wind,
+                FeedResult::DeserError(new_wind) => new_wind,
+                FeedResult::Success { data, remaining } => {
+                    fun(data);
+                    remaining
+                }
+            };
+        }
+    }
+}
+
+pub fn run_dut_tests<T: OutputPin, I2C: I2c>(mut ctx: Context, output: &mut T, i2c: &mut I2C) {
+    read_cobs(&mut ctx.channels.down, |data: HostToDUT| {
+        send_to_host(DUTToHost::Ack(data.id), &mut ctx.channels.up);
+
+        match data.command {
+            HostToDUTCommand::Init => {}
+            HostToDUTCommand::Run(n @ 0) => {
+                let t = pin_test::Dut(output);
+                run_dut_test(n, t, &mut ctx.channels.up);
+            }
+            HostToDUTCommand::Run(n @ 1) => {
+                let test = i2c_test_simple::Dut(i2c);
+                run_dut_test(n, test, &mut ctx.channels.up);
+            }
+            HostToDUTCommand::Run(_) => todo!(),
+        }
+    });
+}
+
+#[cfg(feature = "fp")]
+pub async fn run_fp_tests<I: Instance>(
+    mut ctx: Context,
+    inp: &mut Input<'_>,
+    i2c_target: &mut I2cSlave<'_, I>,
+) {
     let mut raw_buf = [0u8; 128];
     let mut cobs_buf: CobsAccumulator<256> = CobsAccumulator::new();
 
@@ -73,23 +134,26 @@ pub fn run_tests<T: OutputPin>(mut ctx: Context, output: &mut T) {
         let mut window = buf;
 
         'cobs: while !window.is_empty() {
-            window = match cobs_buf.feed::<HostToDUT>(window) {
+            window = match cobs_buf.feed::<HostToFP>(window) {
                 FeedResult::Consumed => break 'cobs,
                 FeedResult::OverFull(new_wind) => new_wind,
                 FeedResult::DeserError(new_wind) => new_wind,
                 FeedResult::Success { data, remaining } => {
-                    // Send ack
-                    send_to_host(DUTToHost::Ack(data.id), &mut ctx.channels.up);
-
+                    send_to_host(FPToHost::Ack(data.id), &mut ctx.channels.up);
                     match data.command {
-                        HostToDUTCommand::Init => info!("Init Ready"),
-                        HostToDUTCommand::Run(n@0) => {
-                            let t = TestOne(output);
-                            run_test(n, t, &mut ctx.channels.up);
+                        HostToFPCommand::Init => {}
+                        HostToFPCommand::Run(n @ 0) => {
+                            let test = pin_test::FP(inp);
+                            run_fp_test(n, test, &mut ctx.channels.up).await;
+                            send_to_host(FPToHost::Success(n), &mut ctx.channels.up);
                         }
-                        HostToDUTCommand::Run(_) => todo!(),
+                        HostToFPCommand::Run(n @ 1) => {
+                            let test = i2c_test_simple::FP(i2c_target);
+                            run_fp_test(n, test, &mut ctx.channels.up).await;
+                            send_to_host(FPToHost::Success(n), &mut ctx.channels.up);
+                        }
+                        HostToFPCommand::Run(_) => unimplemented!(),
                     }
-
                     remaining
                 }
             };
@@ -97,36 +161,71 @@ pub fn run_tests<T: OutputPin>(mut ctx: Context, output: &mut T) {
     }
 }
 
-fn run_test(n: u32, mut test: impl Test, up: &mut UpChannel) {
-    // TODO: Timeout, maybe from host side instead?
+fn run_dut_test(n: u32, mut test: impl DutTest, up: &mut UpChannel) {
     if let Err(e) = test.setup() {
-        error!("Encountered error during setup of test {}: {:?}", n, Debug2Format(&e));
+        error!(
+            "Encountered error during setup of test {}: {:?}",
+            n,
+            Debug2Format(&e)
+        );
         send_to_host(DUTToHost::TestFailure(n), up);
         return;
     }
 
     if let Err(e) = test.run() {
-        error!("Encountered error during run of test {}: {:?}", n, Debug2Format(&e));
+        error!(
+            "Encountered error during run of test {}: {:?}",
+            n,
+            Debug2Format(&e)
+        );
         send_to_host(DUTToHost::TestFailure(n), up);
         return;
     }
 
     send_to_host(DUTToHost::Success(n), up);
 
+    // we crash as we can not guarantee to correctness of the system
     test.teardown().unwrap();
 }
 
-// TODO: Test Harness
-// Each test should
-// - Have some preamble/setup
-// - the actual test + timeout
-// - some postamble/teardown
-// - Communicate these states properly without copying too much code
+#[cfg(feature = "fp")]
+async fn run_fp_test(n: u32, mut test: impl FPTest, up: &mut UpChannel) {
+    if let Err(e) = test.setup().await {
+        error!(
+            "Encountered error during setup of test {}: {:?}",
+            n,
+            Debug2Format(&e)
+        );
+        send_to_host(FPToHost::TestFailure(n), up);
+        return;
+    }
 
-trait Test {
+    if let Err(e) = test.run().await {
+        error!(
+            "Encountered error during run of test {}: {:?}",
+            n,
+            Debug2Format(&e)
+        );
+        send_to_host(FPToHost::TestFailure(n), up);
+        return;
+    }
+
+    // we crash as we can not guarantee to correctness of the system
+    test.teardown().await.unwrap();
+}
+
+trait DutTest {
     type E: fmt::Debug;
 
     fn setup(&mut self) -> Result<(), Self::E>;
     fn run(&mut self) -> Result<(), Self::E>;
     fn teardown(&mut self) -> Result<(), Self::E>;
+}
+
+trait FPTest {
+    type E: fmt::Debug;
+
+    async fn setup(&mut self) -> Result<(), Self::E>;
+    async fn run(&mut self) -> Result<(), Self::E>;
+    async fn teardown(&mut self) -> Result<(), Self::E>;
 }

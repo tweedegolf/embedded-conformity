@@ -1,12 +1,13 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
+    process::exit,
     sync::{
         Arc,
         mpsc::{Receiver, Sender, TryRecvError, channel},
     },
     thread::{self, Thread, scope, sleep, yield_now},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use parking_lot::FairMutex;
@@ -22,6 +23,7 @@ use test_suite::{
         DUTToHost, FPToHost, HostToDUT, HostToDUTCommand, HostToFP, HostToFPCommand, to_bytes_alloc,
     },
 };
+use tracing::{debug, error, info};
 
 use crate::{
     Config,
@@ -129,10 +131,10 @@ impl Coordinator {
                 }
 
                 let buf = &raw_buf[..ct];
-                let mut window = &buf[..];
+                let mut window = buf;
 
                 'cobs: while !window.is_empty() {
-                    window = match cobs_buf.feed::<T>(&window) {
+                    window = match cobs_buf.feed::<T>(window) {
                         FeedResult::Consumed => break 'cobs,
                         FeedResult::OverFull(new_wind) => new_wind,
                         FeedResult::DeserError(new_wind) => new_wind,
@@ -188,13 +190,16 @@ impl Coordinator {
         assert_eq!(FPToHost::Ack(13), from_fp.recv().unwrap());
         assert_eq!(DUTToHost::Ack(31), from_dut.recv().unwrap());
 
-        let mut fp_acks = HashSet::new();
-        let mut dut_acks = HashSet::new();
+        let mut fp_acks = HashMap::new();
+        let mut dut_acks = HashMap::new();
+
+        info!("Devices initialized, starting tests...");
+
         for n in 0..NUM_TESTS {
             let fp_msg = HostToFP::new(HostToFPCommand::Run(n));
             let dut_msg = HostToDUT::new(HostToDUTCommand::Run(n));
-            fp_acks.insert(fp_msg.id);
-            dut_acks.insert(dut_msg.id);
+            fp_acks.insert(fp_msg.id, Instant::now());
+            dut_acks.insert(dut_msg.id, Instant::now());
 
             to_fp.send(fp_msg).unwrap();
             to_dut.send(dut_msg).unwrap();
@@ -202,16 +207,40 @@ impl Coordinator {
             let mut fp_success = false;
             let mut dut_success = false;
 
+            let now = Instant::now();
+
             'inner: loop {
-                // TODO: Timeout
+                // Timeout, check for pending acks
+                if check_timeouts(&fp_acks) {
+                    error!(
+                        "Fake Peripheral ack timeout({}ms) reached",
+                        TIMEOUT.as_millis()
+                    );
+                    exit(1);
+                }
+
+                if check_timeouts(&dut_acks) {
+                    error!(
+                        "Device Under Test ack timeout({}ms) reached",
+                        TIMEOUT.as_millis()
+                    );
+                    exit(1);
+                }
+
+                if now.elapsed() > TIMEOUT {
+                    error!("Timeout, test took more than {}ms", TIMEOUT.as_millis());
+                    exit(1);
+                }
+
                 match from_fp.try_recv() {
                     Ok(msg) => match msg {
                         FPToHost::Ack(id) => {
-                            assert!(fp_acks.remove(&id));
+                            assert!(fp_acks.remove(&id).is_some());
                         }
-                        FPToHost::TestFailure(n) => println!("FRM FP: Test {n} failed"),
+                        FPToHost::TestFailure(n) => error!("FRM FP: Test {n} failed"),
                         FPToHost::Success(gn) => {
                             assert_eq!(n, gn);
+                            debug!("fp success {n}");
                             fp_success = true;
                         }
                     },
@@ -222,11 +251,12 @@ impl Coordinator {
                 match from_dut.try_recv() {
                     Ok(msg) => match msg {
                         DUTToHost::Ack(id) => {
-                            assert!(dut_acks.remove(&id));
+                            assert!(dut_acks.remove(&id).is_some());
                         }
-                        DUTToHost::TestFailure(n) => println!("FRM DT: Test {n} failed"),
+                        DUTToHost::TestFailure(n) => error!("FRM DT: Test {n} failed"),
                         DUTToHost::Success(gn) => {
                             assert_eq!(n, gn);
+                            debug!("dut success {n}");
                             dut_success = true;
                         }
                         DUTToHost::Finished => todo!(),
@@ -240,11 +270,14 @@ impl Coordinator {
                 }
             }
 
-            println!("Test {n} succeeded");
+            info!("Test {n}: Success ({}ms)", now.elapsed().as_millis());
         }
 
-        loop {
-            sleep(Duration::from_secs(3600));
-        }
+        exit(0);
     }
+}
+
+pub const TIMEOUT: Duration = Duration::from_millis(5000);
+fn check_timeouts(hm: &HashMap<u32, Instant>) -> bool {
+    hm.iter().any(|(_, v)| v.elapsed() > TIMEOUT)
 }

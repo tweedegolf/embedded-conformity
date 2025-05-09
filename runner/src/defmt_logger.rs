@@ -1,11 +1,8 @@
 use std::{env, fs, path::Path};
 
-use defmt_decoder::{
-    DecodeError, Frame, Locations, Table,
-    log::format::{Formatter, FormatterConfig},
-};
-use probe_rs::{Core, rtt::UpChannel};
-use tracing::{Level, debug, error, event, info, trace, warn};
+use defmt_decoder::{DecodeError, Frame, Locations, Table};
+use probe_rs::rtt::UpChannel;
+use tracing::{Level, error, event, warn};
 
 use crate::coordinator::ArcSession;
 
@@ -32,11 +29,6 @@ pub fn run_logger(target: Target, session: ArcSession, up: &mut UpChannel, elf: 
         None
     };
 
-    // let mut formatter_config = FormatterConfig::default();
-    // formatter_config.is_timestamp_available = table.has_timestamp();
-
-    // let formatter = Formatter::new(formatter_config);
-
     let mut buf = [0; READ_BUFFER_SIZE];
     let mut stream_decoder = table.new_stream_decoder();
     let current_dir = env::current_dir().unwrap();
@@ -53,15 +45,15 @@ pub fn run_logger(target: Target, session: ArcSession, up: &mut UpChannel, elf: 
         loop {
             match stream_decoder.decode() {
                 Ok(frame) => {
-                    let location_info = location_info(&locs, &frame, &current_dir);
-                    log_frame(target, frame, location_info);
+                    let location_info = location_info(locs.as_ref(), &frame, &current_dir);
+                    log_frame(target, &frame, &location_info);
                 }
                 Err(DecodeError::UnexpectedEof) => break,
                 Err(DecodeError::Malformed) => match table.encoding().can_recover() {
-                    false => panic!("malformed defmt, unrecoverable"),
+                    false => panic!("malformed defmt, unrecoverable from {:?}", target),
                     true => {
                         // log error
-                        eprintln!(" malformed frame");
+                        error!("malformed frame from {:?}", target);
                         continue;
                     }
                 },
@@ -72,7 +64,7 @@ pub fn run_logger(target: Target, session: ArcSession, up: &mut UpChannel, elf: 
 
 type LocationInfo = (Option<String>, Option<u32>, Option<String>);
 
-fn location_info(locs: &Option<Locations>, frame: &Frame, current_dir: &Path) -> LocationInfo {
+fn location_info(locs: Option<&Locations>, frame: &Frame, current_dir: &Path) -> LocationInfo {
     let (mut file, mut line, mut mod_path) = (None, None, None);
 
     let loc = locs.as_ref().map(|locs| locs.get(&frame.index()));
@@ -89,7 +81,7 @@ fn location_info(locs: &Option<Locations>, frame: &Frame, current_dir: &Path) ->
     (file, line, mod_path)
 }
 
-fn log_frame(target: Target, frame: Frame<'_>, loc: LocationInfo) {
+fn log_frame(target: Target, frame: &Frame<'_>, loc: &LocationInfo) {
     const FP: &str = "fp";
     const DUT: &str = "dut";
 

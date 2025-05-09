@@ -1,24 +1,22 @@
 #![no_std]
 #![no_main]
 
-use defmt::info;
 use embassy_executor::Spawner;
-use embassy_rp::gpio::{Input, Level, Output};
+use embassy_rp::{bind_interrupts, gpio::{Input, Level, Output}, i2c::InterruptHandler, i2c_slave::{self, I2cSlave}, peripherals::{I2C0, I2C1, PIO0}};
 use embassy_time::{Duration, with_timeout};
 use panic_probe as _;
-use test_suite::{
-    postcard::accumulator::{CobsAccumulator, FeedResult},
-    protocol::{FPToHost, HostToFP, HostToFPCommand, send_to_host},
-};
+use test_suite::{embassy_rp, i2c_tests::I2C_DEFAULT_ADDRESS};
 
-mod pio;
+// mod pio;
+bind_interrupts!(struct Irqs {
+    I2C0_IRQ => InterruptHandler<I2C0>;
+});
+
+
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
-    // Even though we won't be running the test suite on this device, we will still import it for
-    // some of the helper functions like `init`
-    let mut ctx = test_suite::init();
-
+    let ctx = test_suite::init();
     let p = embassy_rp::init(Default::default());
 
     let mut led = Output::new(p.PIN_13, Level::Low);
@@ -26,54 +24,10 @@ async fn main(_spawner: Spawner) {
 
     let mut input_one = Input::new(p.PIN_10, embassy_rp::gpio::Pull::None);
 
-    let mut raw_buf = [0u8; 128];
-    let mut cobs_buf: CobsAccumulator<256> = CobsAccumulator::new();
+    let config = i2c_slave::Config::default();
+    // scl, sda
+    let mut slave = I2cSlave::new(p.I2C0, p.PIN_9, p.PIN_8, Irqs, config);
 
-    // Continously read the RTT buffer and decode the messages
-    loop {
-        let ct = ctx.channels.down.read(&mut raw_buf);
-        // Finished reading input
-        if ct == 0 {
-            continue;
-        }
-
-        let buf = &raw_buf[..ct];
-        let mut window = buf;
-
-        'cobs: while !window.is_empty() {
-            window = match cobs_buf.feed::<HostToFP>(window) {
-                FeedResult::Consumed => break 'cobs,
-                FeedResult::OverFull(new_wind) => new_wind,
-                FeedResult::DeserError(new_wind) => new_wind,
-                FeedResult::Success { data, remaining } => {
-                    send_to_host(FPToHost::Ack(data.id), &mut ctx.channels.up);
-                    // Do something with `data: MyData` here.
-                    match data.command {
-                        HostToFPCommand::Init => info!("Init Ready"),
-                        HostToFPCommand::Run(0) => {
-                            run_test(async {
-                                test_one(&mut input_one).await;
-                            })
-                            .await;
-
-                            send_to_host(FPToHost::Success(0), &mut ctx.channels.up);
-                        }
-                        HostToFPCommand::Run(_) => todo!(),
-                    }
-
-                    remaining
-                }
-            };
-        }
-    }
+    test_suite::run_fp_tests(ctx, &mut input_one, &mut slave).await;
 }
 
-async fn run_test<F: Future>(fut: F) {
-    let res = with_timeout(Duration::from_millis(5000), fut).await;
-
-    res.unwrap();
-}
-
-async fn test_one(input: &mut Input<'_>) {
-    input.wait_for_high().await;
-}

@@ -1,4 +1,3 @@
-use core::fmt;
 use std::error::Error;
 use std::fs::{self, canonicalize};
 use std::path::{Path, PathBuf};
@@ -17,6 +16,7 @@ use probe_rs::probe::DebugProbeInfo;
 use probe_rs::probe::list::Lister;
 use probe_rs::{Permissions, Session};
 use serde::{Deserialize, Serialize};
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 mod coordinator;
 mod defmt_logger;
@@ -58,8 +58,10 @@ struct DeviceInfo {
 fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
-    let subscriber = tracing_subscriber::FmtSubscriber::new();
-    tracing::subscriber::set_global_default(subscriber)?;
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(EnvFilter::from_default_env())
+        .init();
 
     match cli.command {
         Commands::List => {
@@ -87,7 +89,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             };
 
             let res = toml::to_string_pretty(&cfg).unwrap();
-            println!("{res}")
+            println!("{res}");
         }
     }
 
@@ -138,7 +140,7 @@ fn run_test(cfg: Config) {
 fn build_firmware(path: &Path) -> PathBuf {
     let mut gctx = GlobalContext::default().unwrap();
     // makes sure the correct `.cargo/config` is loaded
-    gctx.reload_rooted_at(&path).unwrap();
+    gctx.reload_rooted_at(path).unwrap();
 
     let path = canonicalize(path).unwrap();
     let ws = Workspace::new(&path, &gctx).unwrap();
@@ -155,7 +157,7 @@ fn build_firmware(path: &Path) -> PathBuf {
 #[tracing::instrument]
 fn flash_firmware(
     probe_info: &DebugProbeInfo,
-    target: impl Into<TargetSelector> + fmt::Debug,
+    target: impl Into<TargetSelector> + core::fmt::Debug,
     elf: &Path,
 ) {
     assert!(elf.exists(), "Elf path does not exist");
@@ -174,7 +176,7 @@ fn start_device(probe_info: &DebugProbeInfo, chip: &str) -> Session {
     {
         let mut core = session.core(0).unwrap();
 
-        // why ???
+        // TODO: is there a way to prevent this?
         core.reset().unwrap();
     }
 
