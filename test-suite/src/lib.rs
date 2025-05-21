@@ -2,7 +2,7 @@
 
 use core::fmt;
 
-use defmt::{Debug2Format, error, info};
+use defmt::{Debug2Format, Format, error, info, unwrap};
 use embedded_hal::{digital::OutputPin, i2c::I2c};
 use postcard::accumulator::{CobsAccumulator, FeedResult};
 use protocol::{
@@ -95,7 +95,11 @@ fn read_cobs<T: for<'de> Deserialize<'de>>(down: &mut DownChannel, mut fun: impl
     }
 }
 
-pub fn run_dut_tests<T: OutputPin, I2C: I2c>(mut ctx: Context, output: &mut T, i2c: &mut I2C) {
+pub fn run_dut_tests<T: OutputPin, I2C: I2c>(mut ctx: Context, output: &mut T, i2c: &mut I2C)
+where
+    <I2C as embedded_hal::i2c::ErrorType>::Error: defmt::Format,
+    <T as embedded_hal::digital::ErrorType>::Error: defmt::Format,
+{
     read_cobs(&mut ctx.channels.down, |data: HostToDUT| {
         send_to_host(DUTToHost::Ack(data.id), &mut ctx.channels.up);
 
@@ -163,21 +167,13 @@ pub async fn run_fp_tests<I: Instance>(
 
 fn run_dut_test(n: u32, mut test: impl DutTest, up: &mut UpChannel) {
     if let Err(e) = test.setup() {
-        error!(
-            "Encountered error during setup of test {}: {:?}",
-            n,
-            Debug2Format(&e)
-        );
+        error!("Encountered error during setup of test {}: {:?}", n, &e);
         send_to_host(DUTToHost::TestFailure(n), up);
         return;
     }
 
     if let Err(e) = test.run() {
-        error!(
-            "Encountered error during run of test {}: {:?}",
-            n,
-            Debug2Format(&e)
-        );
+        error!("Encountered error during run of test {}: {:?}", n, &e);
         send_to_host(DUTToHost::TestFailure(n), up);
         return;
     }
@@ -185,37 +181,29 @@ fn run_dut_test(n: u32, mut test: impl DutTest, up: &mut UpChannel) {
     send_to_host(DUTToHost::Success(n), up);
 
     // we crash as we can not guarantee to correctness of the system
-    test.teardown().unwrap();
+    unwrap!(test.teardown())
 }
 
 #[cfg(feature = "fp")]
 async fn run_fp_test(n: u32, mut test: impl FPTest, up: &mut UpChannel) {
     if let Err(e) = test.setup().await {
-        error!(
-            "Encountered error during setup of test {}: {:?}",
-            n,
-            Debug2Format(&e)
-        );
+        error!("Encountered error during setup of test {}: {:?}", n, &e);
         send_to_host(FPToHost::TestFailure(n), up);
         return;
     }
 
     if let Err(e) = test.run().await {
-        error!(
-            "Encountered error during run of test {}: {:?}",
-            n,
-            Debug2Format(&e)
-        );
+        error!("Encountered error during run of test {}: {:?}", n, &e);
         send_to_host(FPToHost::TestFailure(n), up);
         return;
     }
 
     // we crash as we can not guarantee to correctness of the system
-    test.teardown().await.unwrap();
+    unwrap!(test.teardown().await)
 }
 
 trait DutTest {
-    type E: fmt::Debug;
+    type E: Format;
 
     fn setup(&mut self) -> Result<(), Self::E>;
     fn run(&mut self) -> Result<(), Self::E>;
@@ -223,7 +211,7 @@ trait DutTest {
 }
 
 trait FPTest {
-    type E: fmt::Debug;
+    type E: Format;
 
     async fn setup(&mut self) -> Result<(), Self::E>;
     async fn run(&mut self) -> Result<(), Self::E>;

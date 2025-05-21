@@ -8,7 +8,10 @@ pub mod pin_test {
     /// The Device Under Test Test
     pub struct Dut<'a, T: OutputPin>(pub &'a mut T);
 
-    impl<T: OutputPin> DutTest for Dut<'_, T> {
+    impl<T: OutputPin> DutTest for Dut<'_, T>
+    where
+        <T as embedded_hal::digital::ErrorType>::Error: defmt::Format,
+    {
         type E = T::Error;
 
         fn setup(&mut self) -> Result<(), Self::E> {
@@ -29,7 +32,10 @@ pub mod pin_test {
     pub struct FP<'a, T: InputPin>(pub &'a mut T);
 
     #[cfg(feature = "fp")]
-    impl<T: InputPin> FPTest for FP<'_, T> {
+    impl<T: InputPin> FPTest for FP<'_, T>
+    where
+        <T as embedded_hal::digital::ErrorType>::Error: defmt::Format,
+    {
         type E = T::Error;
 
         async fn setup(&mut self) -> Result<(), Self::E> {
