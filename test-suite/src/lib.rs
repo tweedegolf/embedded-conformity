@@ -1,8 +1,6 @@
 #![no_std]
 
-use core::fmt;
-
-use defmt::{Debug2Format, Format, error, info, unwrap};
+use defmt::{Format, error, unwrap};
 use embedded_hal::{digital::OutputPin, i2c::I2c};
 use postcard::accumulator::{CobsAccumulator, FeedResult};
 use protocol::{
@@ -11,13 +9,12 @@ use protocol::{
 use rtt_target::{ChannelMode, DownChannel, UpChannel, rtt_init, set_defmt_channel};
 
 pub use postcard;
-use sanity_tests::*;
 use serde::Deserialize;
 
 pub mod i2c_tests;
+pub mod sanity_tests;
+
 pub mod protocol;
-mod sanity_tests;
-use i2c_tests::i2c_test_simple;
 
 #[cfg(feature = "fp")]
 pub use embassy_rp;
@@ -65,7 +62,7 @@ pub fn init() -> Context {
     }
 }
 
-pub const NUM_TESTS: u32 = 2;
+pub const NUM_TESTS: u32 = 3;
 
 fn read_cobs<T: for<'de> Deserialize<'de>>(down: &mut DownChannel, mut fun: impl FnMut(T)) -> ! {
     let mut raw_buf = [0u8; 128];
@@ -106,14 +103,18 @@ where
         match data.command {
             HostToDUTCommand::Init => {}
             HostToDUTCommand::Run(n @ 0) => {
-                let t = pin_test::Dut(output);
+                let t = sanity_tests::pin_test::Dut(output);
                 run_dut_test(n, t, &mut ctx.channels.up);
             }
             HostToDUTCommand::Run(n @ 1) => {
-                let test = i2c_test_simple::Dut(i2c);
+                let test = i2c_tests::simple_read::Dut(i2c);
                 run_dut_test(n, test, &mut ctx.channels.up);
             }
-            HostToDUTCommand::Run(_) => todo!(),
+            HostToDUTCommand::Run(n @ 2) => {
+                let test = i2c_tests::simple_write::Dut(i2c);
+                run_dut_test(n, test, &mut ctx.channels.up);
+            }
+            HostToDUTCommand::Run(_) => defmt::todo!(),
         }
     });
 }
@@ -147,16 +148,18 @@ pub async fn run_fp_tests<I: Instance>(
                     match data.command {
                         HostToFPCommand::Init => {}
                         HostToFPCommand::Run(n @ 0) => {
-                            let test = pin_test::FP(inp);
+                            let test = sanity_tests::pin_test::FP(inp);
                             run_fp_test(n, test, &mut ctx.channels.up).await;
-                            send_to_host(FPToHost::Success(n), &mut ctx.channels.up);
                         }
                         HostToFPCommand::Run(n @ 1) => {
-                            let test = i2c_test_simple::FP(i2c_target);
+                            let test = i2c_tests::simple_read::FP(i2c_target);
                             run_fp_test(n, test, &mut ctx.channels.up).await;
-                            send_to_host(FPToHost::Success(n), &mut ctx.channels.up);
                         }
-                        HostToFPCommand::Run(_) => unimplemented!(),
+                        HostToFPCommand::Run(n @ 2) => {
+                            let test = i2c_tests::simple_write::FP(i2c_target);
+                            run_fp_test(n, test, &mut ctx.channels.up).await;
+                        }
+                        HostToFPCommand::Run(_) => defmt::todo!(),
                     }
                     remaining
                 }
@@ -197,6 +200,8 @@ async fn run_fp_test(n: u32, mut test: impl FPTest, up: &mut UpChannel) {
         send_to_host(FPToHost::TestFailure(n), up);
         return;
     }
+
+    send_to_host(FPToHost::Success(n), up);
 
     // we crash as we can not guarantee to correctness of the system
     unwrap!(test.teardown().await)
