@@ -1,29 +1,31 @@
-use crate::{DutTest, FPTest};
+use crate::{DutTest, FPTest, Session};
 use embedded_hal::digital::{InputPin, OutputPin};
 
 /// A simple sanity test that sets a pin high for the tester to check if it goes high
 pub mod pin_test {
+    use embedded_hal::i2c::I2c;
+
     use super::*;
 
     /// The Device Under Test Test
-    pub struct Dut<'a, T: OutputPin>(pub &'a mut T);
+    pub struct Dut;
 
-    impl<T: OutputPin> DutTest for Dut<'_, T>
+    impl<I2C: I2c, P: OutputPin> DutTest<I2C, P> for Dut
     where
-        <T as embedded_hal::digital::ErrorType>::Error: defmt::Format,
+        <P as embedded_hal::digital::ErrorType>::Error: defmt::Format,
     {
-        type E = T::Error;
+        type E = P::Error;
 
-        fn setup(&mut self) -> Result<(), Self::E> {
-            self.0.set_low()
+        fn setup(&mut self, session: &mut Session<I2C, P>) -> Result<(), Self::E> {
+            session.pin.set_low()
         }
 
-        fn run(&mut self) -> Result<(), Self::E> {
-            self.0.set_high()
+        fn run(&mut self, session: &mut Session<I2C, P>) -> Result<(), Self::E> {
+            session.pin.set_high()
         }
 
-        fn teardown(&mut self) -> Result<(), Self::E> {
-            self.0.set_low()
+        fn teardown(&mut self, session: &mut Session<I2C, P>) -> Result<(), Self::E> {
+            session.pin.set_low()
         }
     }
 

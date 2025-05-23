@@ -35,35 +35,36 @@ impl<T: Format + embedded_hal::i2c::ErrorType> From<T> for I2cError<T> {
 }
 
 pub mod simple_read {
+    use crate::Session;
+
     use super::*;
 
     use defmt::trace;
+    use embedded_hal::digital::OutputPin;
     #[cfg(feature = "fp")]
     use tester::{I2cSlaveTestError, I2cSlaveTester};
 
     const PAYLOAD: &[u8; 1] = &[13];
 
     /// The Device Under Test Test
-    pub struct Dut<'a, T>(pub &'a mut T)
-    where
-        T: I2c,
-        T::Error: Format;
+    pub struct Dut;
 
-    impl<T: I2c> DutTest for Dut<'_, T>
+    impl<P: OutputPin, T: I2c> DutTest<T, P> for Dut
     where
         T::Error: defmt::Format,
     {
         type E = I2cError<T::Error>;
 
-        fn setup(&mut self) -> Result<(), Self::E> {
+        fn setup(&mut self, _: &mut Session<T, P>) -> Result<(), Self::E> {
             Ok(())
         }
 
-        fn run(&mut self) -> Result<(), Self::E> {
+        fn run(&mut self, session: &mut Session<T, P>) -> Result<(), Self::E> {
             let mut buf = [0; PAYLOAD.len()];
 
             trace!("reading i2c");
-            self.0
+            session
+                .i2c
                 .read(I2C_DEFAULT_ADDRESS, &mut buf)
                 .map_err(I2cError::InternalError)?;
             trace!("done reading i2c");
@@ -75,7 +76,7 @@ pub mod simple_read {
             Ok(())
         }
 
-        fn teardown(&mut self) -> Result<(), Self::E> {
+        fn teardown(&mut self, _: &mut Session<T, P>) -> Result<(), Self::E> {
             Ok(())
         }
     }
@@ -108,41 +109,44 @@ pub mod simple_read {
 }
 
 pub mod simple_write {
+    use crate::Session;
+
     use super::*;
 
     use defmt::trace;
+    use embedded_hal::digital::OutputPin;
     #[cfg(feature = "fp")]
     use tester::I2cSlaveTester;
 
     const PAYLOAD: &[u8; 1] = &[13];
 
     /// The Device Under Test Test
-    pub struct Dut<'a, T>(pub &'a mut T)
-    where
-        T: I2c,
-        T::Error: Format;
+    pub struct Dut;
 
-    impl<T: I2c> DutTest for Dut<'_, T>
+    impl<T: I2c, P: OutputPin> DutTest<T, P> for Dut
     where
-        T::Error: defmt::Format,
+        <T as embedded_hal::i2c::ErrorType>::Error: defmt::Format,
     {
         type E = I2cError<T::Error>;
 
-        fn setup(&mut self) -> Result<(), Self::E> {
+        fn setup(&mut self, _: &mut Session<T, P>) -> Result<(), Self::E> {
             Ok(())
         }
 
-        fn run(&mut self) -> Result<(), Self::E> {
+        fn run(&mut self, session: &mut Session<T, P>) -> Result<(), Self::E> {
             trace!("Starting i2c write");
-            self.0
-                .write(I2C_DEFAULT_ADDRESS, PAYLOAD)
-                .map_err(I2cError::InternalError)?;
+            for _ in 0..3 {
+                session
+                    .i2c
+                    .write(I2C_DEFAULT_ADDRESS, PAYLOAD)
+                    .map_err(I2cError::InternalError)?;
+            }
             trace!("Finished i2c write");
 
             Ok(())
         }
 
-        fn teardown(&mut self) -> Result<(), Self::E> {
+        fn teardown(&mut self, _: &mut Session<T, P>) -> Result<(), Self::E> {
             Ok(())
         }
     }
@@ -162,6 +166,8 @@ pub mod simple_write {
         async fn run(&mut self) -> Result<(), Self::E> {
             I2cSlaveTester::new(self.0)
                 .expect_write(PAYLOAD)
+                .expect_write(PAYLOAD)
+                .expect_write(PAYLOAD)
                 .run()
                 .await?;
             Ok(())
@@ -173,4 +179,3 @@ pub mod simple_write {
         }
     }
 }
-

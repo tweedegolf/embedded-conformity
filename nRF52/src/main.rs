@@ -5,6 +5,7 @@ use cortex_m::asm::wfi;
 use embassy_executor::Spawner;
 use embassy_nrf::{bind_interrupts, gpio::{Level, Output, OutputDrive}, peripherals, twim::{self, Twim}};
 use panic_probe as _;
+use test_suite::Session;
 
 bind_interrupts!(struct Irqs {
     TWISPI0 => twim::InterruptHandler<peripherals::TWISPI0>;
@@ -15,14 +16,14 @@ async fn main(_spawner: Spawner) {
     let ctx = test_suite::init();
     let p = embassy_nrf::init(Default::default());
 
-    let mut led = Output::new(p.P0_13, Level::Low, OutputDrive::Standard);
-
-    let mut output_a = Output::new(p.P0_31, Level::Low, OutputDrive::Standard);
+    let output_a = Output::new(p.P0_31, Level::Low, OutputDrive::Standard);
 
     let config = twim::Config::default();
-    let mut twim = Twim::new(p.TWISPI0, Irqs, p.P0_03, p.P0_04, config);
+    let twim = Twim::new(p.TWISPI0, Irqs, p.P0_03, p.P0_04, config);
 
-    test_suite::run_dut_tests(ctx, &mut output_a, &mut twim);
+    let session = Session { i2c: twim, pin: output_a };
+
+    test_suite::run_dut_tests(ctx, session);
 
     loop {
         wfi();

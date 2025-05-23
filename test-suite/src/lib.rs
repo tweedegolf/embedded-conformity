@@ -1,6 +1,6 @@
 #![no_std]
 
-use defmt::{debug, error, trace, unwrap, Format};
+use defmt::{Format, debug, error, trace, unwrap};
 use embedded_hal::{digital::OutputPin, i2c::I2c};
 use postcard::accumulator::{CobsAccumulator, FeedResult};
 use protocol::{
@@ -92,10 +92,10 @@ fn read_cobs<T: for<'de> Deserialize<'de>>(down: &mut DownChannel, mut fun: impl
     }
 }
 
-pub fn run_dut_tests<T: OutputPin, I2C: I2c>(mut ctx: Context, output: &mut T, i2c: &mut I2C)
+pub fn run_dut_tests<P: OutputPin, I2C: I2c>(mut ctx: Context, mut session: Session<I2C, P>)
 where
     <I2C as embedded_hal::i2c::ErrorType>::Error: defmt::Format,
-    <T as embedded_hal::digital::ErrorType>::Error: defmt::Format,
+    <P as embedded_hal::digital::ErrorType>::Error: defmt::Format,
 {
     read_cobs(&mut ctx.channels.down, |data: HostToDUT| {
         send_to_host(DUTToHost::Ack(data.id), &mut ctx.channels.up);
@@ -104,18 +104,18 @@ where
             HostToDUTCommand::Init => {}
             HostToDUTCommand::Run(n @ 0) => {
                 debug!("running test {}", n);
-                let t = sanity_tests::pin_test::Dut(output);
-                run_dut_test(n, t, &mut ctx.channels.up);
+                let test = sanity_tests::pin_test::Dut;
+                run_dut_test(n, test, &mut ctx.channels.up, &mut session);
             }
             HostToDUTCommand::Run(n @ 1) => {
                 debug!("running test {}", n);
-                let test = i2c_tests::simple_read::Dut(i2c);
-                run_dut_test(n, test, &mut ctx.channels.up);
+                let test = i2c_tests::simple_read::Dut;
+                run_dut_test(n, test, &mut ctx.channels.up, &mut session);
             }
             HostToDUTCommand::Run(n @ 2) => {
                 debug!("running test {}", n);
-                let test = i2c_tests::simple_write::Dut(i2c);
-                run_dut_test(n, test, &mut ctx.channels.up);
+                let test = i2c_tests::simple_write::Dut;
+                run_dut_test(n, test, &mut ctx.channels.up, &mut session);
             }
             HostToDUTCommand::Run(_) => defmt::todo!(),
         }
@@ -174,14 +174,14 @@ pub async fn run_fp_tests<I: Instance>(
     }
 }
 
-fn run_dut_test(n: u32, mut test: impl DutTest, up: &mut UpChannel) {
-    if let Err(e) = test.setup() {
+fn run_dut_test<I2C: I2c, P: OutputPin>(n: u32, mut test: impl DutTest<I2C, P>, up: &mut UpChannel, session: &mut Session<I2C, P>) {
+    if let Err(e) = test.setup(session) {
         error!("Encountered error during setup of test {}: {:?}", n, &e);
         send_to_host(DUTToHost::TestFailure(n), up);
         return;
     }
 
-    if let Err(e) = test.run() {
+    if let Err(e) = test.run(session) {
         error!("Encountered error during run of test {}: {:?}", n, &e);
         send_to_host(DUTToHost::TestFailure(n), up);
         return;
@@ -190,7 +190,7 @@ fn run_dut_test(n: u32, mut test: impl DutTest, up: &mut UpChannel) {
     send_to_host(DUTToHost::Success(n), up);
 
     // we crash as we can not guarantee to correctness of the system
-    unwrap!(test.teardown())
+    unwrap!(test.teardown(session))
 }
 
 #[cfg(feature = "fp")]
@@ -213,12 +213,17 @@ async fn run_fp_test(n: u32, mut test: impl FPTest, up: &mut UpChannel) {
     unwrap!(test.teardown().await)
 }
 
-trait DutTest {
+pub struct Session<I2C: I2c, P: OutputPin> {
+    pub i2c: I2C,
+    pub pin: P,
+}
+
+trait DutTest<I2C: I2c, P: OutputPin> {
     type E: Format;
 
-    fn setup(&mut self) -> Result<(), Self::E>;
-    fn run(&mut self) -> Result<(), Self::E>;
-    fn teardown(&mut self) -> Result<(), Self::E>;
+    fn setup(&mut self, session: &mut Session<I2C, P>) -> Result<(), Self::E>;
+    fn run(&mut self, session: &mut Session<I2C, P>) -> Result<(), Self::E>;
+    fn teardown(&mut self, session: &mut Session<I2C, P>) -> Result<(), Self::E>;
 }
 
 trait FPTest {
