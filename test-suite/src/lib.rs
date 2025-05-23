@@ -1,6 +1,6 @@
 #![no_std]
 
-use defmt::{Format, error, unwrap};
+use defmt::{debug, error, trace, unwrap, Format};
 use embedded_hal::{digital::OutputPin, i2c::I2c};
 use postcard::accumulator::{CobsAccumulator, FeedResult};
 use protocol::{
@@ -103,14 +103,17 @@ where
         match data.command {
             HostToDUTCommand::Init => {}
             HostToDUTCommand::Run(n @ 0) => {
+                debug!("running test {}", n);
                 let t = sanity_tests::pin_test::Dut(output);
                 run_dut_test(n, t, &mut ctx.channels.up);
             }
             HostToDUTCommand::Run(n @ 1) => {
+                debug!("running test {}", n);
                 let test = i2c_tests::simple_read::Dut(i2c);
                 run_dut_test(n, test, &mut ctx.channels.up);
             }
             HostToDUTCommand::Run(n @ 2) => {
+                debug!("running test {}", n);
                 let test = i2c_tests::simple_write::Dut(i2c);
                 run_dut_test(n, test, &mut ctx.channels.up);
             }
@@ -148,14 +151,17 @@ pub async fn run_fp_tests<I: Instance>(
                     match data.command {
                         HostToFPCommand::Init => {}
                         HostToFPCommand::Run(n @ 0) => {
+                            debug!("running test {}", n);
                             let test = sanity_tests::pin_test::FP(inp);
                             run_fp_test(n, test, &mut ctx.channels.up).await;
                         }
                         HostToFPCommand::Run(n @ 1) => {
+                            debug!("running test {}", n);
                             let test = i2c_tests::simple_read::FP(i2c_target);
                             run_fp_test(n, test, &mut ctx.channels.up).await;
                         }
                         HostToFPCommand::Run(n @ 2) => {
+                            debug!("running test {}", n);
                             let test = i2c_tests::simple_write::FP(i2c_target);
                             run_fp_test(n, test, &mut ctx.channels.up).await;
                         }

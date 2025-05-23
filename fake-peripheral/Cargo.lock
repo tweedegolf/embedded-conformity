@@ -1337,6 +1337,7 @@ dependencies = [
  "postcard",
  "rtt-target",
  "serde",
+ "thiserror",
 ]
 
 [[package]]

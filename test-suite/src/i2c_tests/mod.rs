@@ -1,12 +1,11 @@
 use crate::{DutTest, FPTest};
-use defmt::{Format, info};
+use defmt::Format;
 use embedded_hal::i2c::I2c;
 
 #[cfg(feature = "fp")]
-use embassy_rp::{
-    i2c::Instance,
-    i2c_slave::{self, I2cSlave},
-};
+use embassy_rp::{i2c::Instance, i2c_slave::I2cSlave};
+#[cfg(feature = "fp")]
+use tester::I2cSlaveTestError;
 
 pub const I2C_DEFAULT_ADDRESS: u8 = 0x55;
 
@@ -14,18 +13,33 @@ pub const I2C_DEFAULT_ADDRESS: u8 = 0x55;
 pub mod tester;
 
 #[derive(Format)]
-pub enum I2cError {
-    InternalError,
-    TestFailure,
+pub enum I2cError<T> {
+    InternalError(T),
+    TestFailure(&'static str),
+}
+
+#[cfg(feature = "fp")]
+impl From<I2cSlaveTestError> for I2cError<I2cSlaveTestError> {
+    fn from(value: I2cSlaveTestError) -> Self {
+        match value {
+            I2cSlaveTestError::ExpectationFailure(msg) => I2cError::TestFailure(msg),
+            err @ I2cSlaveTestError::InternalError(_) => I2cError::InternalError(err),
+        }
+    }
+}
+
+impl<T: Format + embedded_hal::i2c::ErrorType> From<T> for I2cError<T> {
+    fn from(value: T) -> Self {
+        I2cError::InternalError(value)
+    }
 }
 
 pub mod simple_read {
-    use defmt::{Debug2Format, error, unwrap};
-
-    #[cfg(feature = "fp")]
-    use super::tester::I2cSlaveTester;
-
     use super::*;
+
+    use defmt::trace;
+    #[cfg(feature = "fp")]
+    use tester::{I2cSlaveTestError, I2cSlaveTester};
 
     const PAYLOAD: &[u8; 1] = &[13];
 
@@ -39,27 +53,29 @@ pub mod simple_read {
     where
         T::Error: defmt::Format,
     {
-        type E = I2cError;
+        type E = I2cError<T::Error>;
 
-        fn setup(&mut self) -> Result<(), I2cError> {
+        fn setup(&mut self) -> Result<(), Self::E> {
             Ok(())
         }
 
-        fn run(&mut self) -> Result<(), I2cError> {
+        fn run(&mut self) -> Result<(), Self::E> {
             let mut buf = [0; PAYLOAD.len()];
-            self.0.read(I2C_DEFAULT_ADDRESS, &mut buf).map_err(|e| {
-                error!("Error encountered: {}", &e);
-                I2cError::InternalError
-            })?;
+
+            trace!("reading i2c");
+            self.0
+                .read(I2C_DEFAULT_ADDRESS, &mut buf)
+                .map_err(I2cError::InternalError)?;
+            trace!("done reading i2c");
 
             if &buf != PAYLOAD {
-                return Err(I2cError::TestFailure);
+                return Err(I2cError::TestFailure("payload mismatched what was read"));
             }
 
             Ok(())
         }
 
-        fn teardown(&mut self) -> Result<(), I2cError> {
+        fn teardown(&mut self) -> Result<(), Self::E> {
             Ok(())
         }
     }
@@ -70,14 +86,17 @@ pub mod simple_read {
 
     #[cfg(feature = "fp")]
     impl<I: Instance> FPTest for FP<'_, '_, I> {
-        type E = I2cError;
+        type E = I2cError<I2cSlaveTestError>;
 
         async fn setup(&mut self) -> Result<(), Self::E> {
             Ok(())
         }
 
         async fn run(&mut self) -> Result<(), Self::E> {
-            unwrap!(I2cSlaveTester::new(self.0).expect_read(PAYLOAD).run().await);
+            I2cSlaveTester::new(self.0)
+                .expect_read(PAYLOAD)
+                .run()
+                .await?;
             Ok(())
         }
 
@@ -89,12 +108,11 @@ pub mod simple_read {
 }
 
 pub mod simple_write {
-    use defmt::{error, unwrap};
-
-    #[cfg(feature = "fp")]
-    use super::tester::I2cSlaveTester;
-
     use super::*;
+
+    use defmt::trace;
+    #[cfg(feature = "fp")]
+    use tester::I2cSlaveTester;
 
     const PAYLOAD: &[u8; 1] = &[13];
 
@@ -108,22 +126,23 @@ pub mod simple_write {
     where
         T::Error: defmt::Format,
     {
-        type E = I2cError;
+        type E = I2cError<T::Error>;
 
-        fn setup(&mut self) -> Result<(), I2cError> {
+        fn setup(&mut self) -> Result<(), Self::E> {
             Ok(())
         }
 
-        fn run(&mut self) -> Result<(), I2cError> {
-            self.0.write(I2C_DEFAULT_ADDRESS, PAYLOAD).map_err(|e| {
-                error!("Error encountered: {}", &e);
-                I2cError::InternalError
-            })?;
+        fn run(&mut self) -> Result<(), Self::E> {
+            trace!("Starting i2c write");
+            self.0
+                .write(I2C_DEFAULT_ADDRESS, PAYLOAD)
+                .map_err(I2cError::InternalError)?;
+            trace!("Finished i2c write");
 
             Ok(())
         }
 
-        fn teardown(&mut self) -> Result<(), I2cError> {
+        fn teardown(&mut self) -> Result<(), Self::E> {
             Ok(())
         }
     }
@@ -134,19 +153,17 @@ pub mod simple_write {
 
     #[cfg(feature = "fp")]
     impl<I: Instance> FPTest for FP<'_, '_, I> {
-        type E = I2cError;
+        type E = I2cError<I2cSlaveTestError>;
 
         async fn setup(&mut self) -> Result<(), Self::E> {
             Ok(())
         }
 
         async fn run(&mut self) -> Result<(), Self::E> {
-            unwrap!(
-                I2cSlaveTester::new(self.0)
-                    .expect_write(PAYLOAD)
-                    .run()
-                    .await
-            );
+            I2cSlaveTester::new(self.0)
+                .expect_write(PAYLOAD)
+                .run()
+                .await?;
             Ok(())
         }
 
@@ -156,3 +173,4 @@ pub mod simple_write {
         }
     }
 }
+

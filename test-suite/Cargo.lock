@@ -1373,6 +1373,7 @@ dependencies = [
  "rand",
  "rtt-target",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
