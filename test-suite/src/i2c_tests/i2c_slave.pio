@@ -2,16 +2,30 @@
 .side_set 1 opt pindirs
     
 .wrap_target
-; wait for i2c start condition
 
+; pin 0 is SDA
+; pin 1 is SCL
 wait_idle:
-    wait 1 pin 0   ; Wait for SDA high (idle)
-    wait 1 pin 1   ; Wait for SCL high (idle)
+    wait 1 pin 0 ; Wait for SDA high (idle state)
+    wait 1 pin 1 ; wait for SCL high (idle state)
 
 wait_start:
-    wait 0 pin 1   ; Wait for SDA low (potential start)
+    wait 0 pin 1   ; Wait for SCL low (potential start)
     irq set 0 
-    ; now read the address byte
-    
-    ; -- TODO
+
+    ; Read 8 address bits (MSB first)
+    set y, 7      ; Bit counter
+    set x, 0      ; Clear x (will hold the address)
+read_addr_bit:
+    wait 1 pin 1  ; Wait for SCL high
+    in pins 1     ; Read SDA
+    wait 0 pin 1  ; Wait for SCL low
+    jmp y-- read_addr_bit ; Read bit and decrement y
+    mov x, isr
+    irq set 1
+    ; Acknowledge the address
+    wait 1 pin 1  ; Wait for SCL high
+    set pindirs, 1 side 0
+    wait 0 pin 1  ; Wait for SCL low
+
 .wrap

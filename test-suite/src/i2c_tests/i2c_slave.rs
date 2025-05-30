@@ -2,9 +2,10 @@
 
 use embassy_rp::config;
 use embassy_rp::gpio::Pull;
-use embassy_rp::pio::Direction;
+use embassy_rp::pio::{Direction, ShiftConfig, ShiftDirection};
 use embassy_rp::pio::{Config, Pio, program::pio_file};
 use defmt::{debug, trace, unimplemented};
+use serde::de;
 
 pub async fn test_pio_i2c_slave<'a, I: embassy_rp::pio::Instance>(
     pio: &mut Pio<'a, I>,
@@ -19,8 +20,8 @@ pub async fn test_pio_i2c_slave<'a, I: embassy_rp::pio::Instance>(
     scl.set_pull(Pull::Up);
 
     let mut config = Config::<I>::default();
-    config.use_program(&program, &[scl]);
     config.set_in_pins(&[sda]);
+    config.use_program(&program, &[scl]);
 
     pio.sm0.set_config(&config);
     pio.sm0.set_pin_dirs(Direction::In, &[sda, scl]);
@@ -29,9 +30,12 @@ pub async fn test_pio_i2c_slave<'a, I: embassy_rp::pio::Instance>(
     pio.sm0.set_enable(true); // Start the state machine
     
     pio.irq0.wait().await; // Wait for the IRQ to be triggered
+    pio.irq_flags.clear(0);
     debug!("I2C: start recieved");
 
-    
+    pio.irq1.wait().await; // Wait for the IRQ to be triggered
+    let rx = pio.sm0.rx();
+    debug!("I2C: address received: {:X}", unsafe { pio.sm0.get_x() });
 
     unimplemented!("Handle I2C slave communication here");
 }
