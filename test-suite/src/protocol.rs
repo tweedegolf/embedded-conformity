@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "std")]
 extern crate alloc;
 #[cfg(feature = "std")]
-use rand::{RngCore, rngs::ThreadRng};
+use rand::RngCore;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct HostToDUT {

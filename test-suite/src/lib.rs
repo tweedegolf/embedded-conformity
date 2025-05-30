@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(async_fn_in_trait)]
 
 use defmt::Format;
 use postcard::accumulator::{CobsAccumulator, FeedResult};
@@ -93,4 +94,3 @@ pub enum TestError {
     RunError,
     TeardownError,
 }
-

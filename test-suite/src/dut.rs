@@ -2,7 +2,12 @@ use defmt::{debug, error, unwrap};
 use embedded_hal::{digital::OutputPin, i2c::I2c};
 use rtt_target::UpChannel;
 
-use crate::{i2c_tests, list_of_tests::TestSelector, protocol::{send_to_host, DUTToHost, HostToDUT, HostToDUTCommand}, read_cobs, sanity_tests, Context, TestError};
+use crate::{
+    Context, TestError, i2c_tests,
+    list_of_tests::TestSelector,
+    protocol::{DUTToHost, HostToDUT, HostToDUTCommand, send_to_host},
+    read_cobs, sanity_tests,
+};
 
 pub fn run_dut_tests<P: OutputPin, I2C: I2c>(mut ctx: Context, mut session: DutPeripherals<I2C, P>)
 where

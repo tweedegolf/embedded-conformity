@@ -1,12 +1,17 @@
 #![cfg(feature = "fp")]
 
-use defmt::{debug, error, unwrap, Format};
+use defmt::{debug, error, unwrap};
 pub use embassy_rp;
 use embassy_rp::{gpio::Input, i2c::Instance, i2c_slave::I2cSlave};
 use postcard::accumulator::{CobsAccumulator, FeedResult};
 use rtt_target::UpChannel;
 
-use crate::{i2c_tests, list_of_tests::TestSelector, protocol::{send_to_host, FPToHost, HostToFP, HostToFPCommand}, sanity_tests, Context, TestError};
+use crate::{
+    Context, TestError, i2c_tests,
+    list_of_tests::TestSelector,
+    protocol::{FPToHost, HostToFP, HostToFPCommand, send_to_host},
+    sanity_tests,
+};
 
 pub struct FPPeripherals<'a, I: Instance> {
     pub i2c: I2cSlave<'a, I>,
@@ -22,7 +27,12 @@ pub trait FPTest<I: Instance> {
     async fn teardown(&mut self, peripherals: &mut FPPeripherals<'_, I>) -> Result<(), TestError>;
 }
 
-async fn run_fp_test<I: Instance>(n: u32, mut test: impl FPTest<I>, up: &mut UpChannel, peripherals: &mut FPPeripherals<'_, I>) {
+async fn run_fp_test<I: Instance>(
+    n: u32,
+    mut test: impl FPTest<I>,
+    up: &mut UpChannel,
+    peripherals: &mut FPPeripherals<'_, I>,
+) {
     if let Err(e) = test.setup(peripherals).await {
         error!("Encountered error during setup of test {}: {:?}", n, &e);
         send_to_host(FPToHost::TestFailure(n), up);
@@ -41,11 +51,7 @@ async fn run_fp_test<I: Instance>(n: u32, mut test: impl FPTest<I>, up: &mut UpC
     unwrap!(test.teardown(peripherals).await)
 }
 
-pub async fn run_fp_tests<I: Instance>(
-    mut ctx: Context,
-    mut peripherals: FPPeripherals<'_, I>,
-) {
-
+pub async fn run_fp_tests<I: Instance>(mut ctx: Context, mut peripherals: FPPeripherals<'_, I>) {
     let mut raw_buf = [0u8; 128];
     let mut cobs_buf: CobsAccumulator<256> = CobsAccumulator::new();
 

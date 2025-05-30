@@ -1,4 +1,4 @@
-use embedded_hal::digital::{InputPin, OutputPin};
+use embedded_hal::digital::OutputPin;
 
 use crate::{
     dut::{DutPeripherals, DutTest},
@@ -68,10 +68,7 @@ pub mod pin_test {
             Ok(())
         }
 
-        async fn teardown(
-            &mut self,
-            _: &mut FPPeripherals<'_, I>,
-        ) -> Result<(), TestError> {
+        async fn teardown(&mut self, _: &mut FPPeripherals<'_, I>) -> Result<(), TestError> {
             Ok(())
         }
     }
