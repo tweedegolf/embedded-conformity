@@ -1,4 +1,4 @@
-use defmt::{assert, error, trace, unwrap, Format};
+use defmt::{Format, assert, error, trace, unwrap};
 use embassy_rp::{
     i2c::Instance,
     i2c_slave::{self, I2cSlave},

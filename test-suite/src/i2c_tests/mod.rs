@@ -1,11 +1,20 @@
-use crate::{DutTest, FPTest};
-use defmt::Format;
-use embedded_hal::i2c::I2c;
+use defmt::{Format, error, trace};
 
 #[cfg(feature = "fp")]
-use embassy_rp::{i2c::Instance, i2c_slave::I2cSlave};
+use crate::fp::{FPPeripherals, FPTest};
 #[cfg(feature = "fp")]
-use tester::I2cSlaveTestError;
+use embassy_rp::i2c::Instance;
+#[cfg(feature = "fp")]
+use tester::{I2cSlaveTestError, I2cSlaveTester};
+
+use crate::{
+    TestError,
+    dut::{DutPeripherals, DutTest},
+    list_of_tests::TestSelector,
+};
+
+use embedded_hal::digital::OutputPin;
+use embedded_hal::i2c::I2c;
 
 pub const I2C_DEFAULT_ADDRESS: u8 = 0x55;
 
@@ -35,14 +44,7 @@ impl<T: Format + embedded_hal::i2c::ErrorType> From<T> for I2cError<T> {
 }
 
 pub mod simple_read {
-    use crate::Session;
-
     use super::*;
-
-    use defmt::trace;
-    use embedded_hal::digital::OutputPin;
-    #[cfg(feature = "fp")]
-    use tester::{I2cSlaveTestError, I2cSlaveTester};
 
     const PAYLOAD: &[u8; 1] = &[13];
 
@@ -53,128 +55,142 @@ pub mod simple_read {
     where
         T::Error: defmt::Format,
     {
-        type E = I2cError<T::Error>;
+        const S: TestSelector = TestSelector::I2C_SimpleRead;
 
-        fn setup(&mut self, _: &mut Session<T, P>) -> Result<(), Self::E> {
+        fn setup(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
             Ok(())
         }
 
-        fn run(&mut self, session: &mut Session<T, P>) -> Result<(), Self::E> {
+        fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
             let mut buf = [0; PAYLOAD.len()];
 
             trace!("reading i2c");
             session
                 .i2c
                 .read(I2C_DEFAULT_ADDRESS, &mut buf)
-                .map_err(I2cError::InternalError)?;
+                .map_err(|e| {
+                    error!("{}", e);
+                    TestError::RunError
+                })?;
             trace!("done reading i2c");
 
             if &buf != PAYLOAD {
-                return Err(I2cError::TestFailure("payload mismatched what was read"));
+                error!("{}", "i2c: payload mismatched what was read");
+                return Err(TestError::RunError);
             }
 
             Ok(())
         }
 
-        fn teardown(&mut self, _: &mut Session<T, P>) -> Result<(), Self::E> {
+        fn teardown(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
             Ok(())
         }
     }
 
     /// The Fake Peripheral/Tester part of the test
     #[cfg(feature = "fp")]
-    pub struct FP<'a, 'b, I: Instance>(pub &'b mut I2cSlave<'a, I>);
+    pub struct FP;
 
     #[cfg(feature = "fp")]
-    impl<I: Instance> FPTest for FP<'_, '_, I> {
-        type E = I2cError<I2cSlaveTestError>;
+    impl<I: Instance> FPTest<I> for FP {
+        const S: TestSelector = TestSelector::I2C_SimpleRead;
 
-        async fn setup(&mut self) -> Result<(), Self::E> {
+        async fn setup(&mut self, _: &mut FPPeripherals<'_, I>) -> Result<(), TestError> {
             Ok(())
         }
 
-        async fn run(&mut self) -> Result<(), Self::E> {
-            I2cSlaveTester::new(self.0)
+        async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I>) -> Result<(), TestError> {
+            I2cSlaveTester::new(&mut peripherals.i2c)
                 .expect_read(PAYLOAD)
                 .run()
-                .await?;
+                .await
+                .map_err(|e| {
+                    error!("{}", e);
+                    TestError::RunError
+                })?;
             Ok(())
         }
 
-        async fn teardown(&mut self) -> Result<(), Self::E> {
-            self.0.reset();
+        async fn teardown(
+            &mut self,
+            peripherals: &mut FPPeripherals<'_, I>,
+        ) -> Result<(), TestError> {
+            peripherals.i2c.reset();
             Ok(())
         }
     }
 }
 
 pub mod simple_write {
-    use crate::Session;
-
     use super::*;
-
-    use defmt::trace;
-    use embedded_hal::digital::OutputPin;
-    #[cfg(feature = "fp")]
-    use tester::I2cSlaveTester;
 
     const PAYLOAD: &[u8; 1] = &[13];
 
     /// The Device Under Test Test
     pub struct Dut;
 
-    impl<T: I2c, P: OutputPin> DutTest<T, P> for Dut
+    impl<P: OutputPin, T: I2c> DutTest<T, P> for Dut
     where
-        <T as embedded_hal::i2c::ErrorType>::Error: defmt::Format,
+        T::Error: defmt::Format,
     {
-        type E = I2cError<T::Error>;
+        const S: TestSelector = TestSelector::I2C_SimpleWrite;
 
-        fn setup(&mut self, _: &mut Session<T, P>) -> Result<(), Self::E> {
+        fn setup(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
             Ok(())
         }
 
-        fn run(&mut self, session: &mut Session<T, P>) -> Result<(), Self::E> {
+        fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
             trace!("Starting i2c write");
             for _ in 0..3 {
                 session
                     .i2c
                     .write(I2C_DEFAULT_ADDRESS, PAYLOAD)
-                    .map_err(I2cError::InternalError)?;
+                    .map_err(|e| {
+                        error!("{}", e);
+                        TestError::RunError
+                    })?;
             }
             trace!("Finished i2c write");
 
             Ok(())
         }
 
-        fn teardown(&mut self, _: &mut Session<T, P>) -> Result<(), Self::E> {
+        fn teardown(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
             Ok(())
         }
     }
 
     /// The Fake Peripheral/Tester part of the test
     #[cfg(feature = "fp")]
-    pub struct FP<'a, 'b, I: Instance>(pub &'b mut I2cSlave<'a, I>);
+    pub struct FP;
 
     #[cfg(feature = "fp")]
-    impl<I: Instance> FPTest for FP<'_, '_, I> {
-        type E = I2cError<I2cSlaveTestError>;
+    impl<I: Instance> FPTest<I> for FP {
+        const S: TestSelector = TestSelector::I2C_SimpleWrite;
 
-        async fn setup(&mut self) -> Result<(), Self::E> {
+        async fn setup(&mut self, _: &mut FPPeripherals<'_, I>) -> Result<(), TestError> {
             Ok(())
         }
 
-        async fn run(&mut self) -> Result<(), Self::E> {
-            I2cSlaveTester::new(self.0)
+        async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I>) -> Result<(), TestError> {
+            I2cSlaveTester::new(&mut peripherals.i2c)
                 .expect_write(PAYLOAD)
                 .expect_write(PAYLOAD)
                 .expect_write(PAYLOAD)
                 .run()
-                .await?;
+                .await
+                .map_err(|e| {
+                    error!("{}", e);
+                    TestError::RunError
+                })?;
             Ok(())
         }
 
-        async fn teardown(&mut self) -> Result<(), Self::E> {
-            self.0.reset();
+        async fn teardown(
+            &mut self,
+            peripherals: &mut FPPeripherals<'_, I>,
+        ) -> Result<(), TestError> {
+            peripherals.i2c.reset();
             Ok(())
         }
     }

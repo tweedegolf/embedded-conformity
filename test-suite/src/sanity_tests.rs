@@ -1,9 +1,22 @@
-use crate::{DutTest, FPTest, Session};
 use embedded_hal::digital::{InputPin, OutputPin};
+
+use crate::{
+    dut::{DutPeripherals, DutTest},
+    list_of_tests::TestSelector,
+};
+
+#[cfg(feature = "fp")]
+use {
+    crate::fp::{FPPeripherals, FPTest},
+    embassy_rp::i2c::Instance,
+};
 
 /// A simple sanity test that sets a pin high for the tester to check if it goes high
 pub mod pin_test {
+    use defmt::error;
     use embedded_hal::i2c::I2c;
+
+    use crate::TestError;
 
     use super::*;
 
@@ -14,42 +27,51 @@ pub mod pin_test {
     where
         <P as embedded_hal::digital::ErrorType>::Error: defmt::Format,
     {
-        type E = P::Error;
+        const S: TestSelector = TestSelector::Sanity_Pin;
 
-        fn setup(&mut self, session: &mut Session<I2C, P>) -> Result<(), Self::E> {
-            session.pin.set_low()
+        fn setup(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError> {
+            session.pin.set_low().map_err(|e| {
+                error!("{}", e);
+                TestError::SetupError
+            })
         }
 
-        fn run(&mut self, session: &mut Session<I2C, P>) -> Result<(), Self::E> {
-            session.pin.set_high()
+        fn run(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError> {
+            session.pin.set_high().map_err(|e| {
+                error!("{}", e);
+                TestError::RunError
+            })
         }
 
-        fn teardown(&mut self, session: &mut Session<I2C, P>) -> Result<(), Self::E> {
-            session.pin.set_low()
+        fn teardown(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError> {
+            session.pin.set_low().map_err(|e| {
+                error!("{}", e);
+                TestError::TeardownError
+            })
         }
     }
 
     /// The Fake Peripheral/Tester part of the test
     #[cfg(feature = "fp")]
-    pub struct FP<'a, T: InputPin>(pub &'a mut T);
+    pub struct FP;
 
     #[cfg(feature = "fp")]
-    impl<T: InputPin> FPTest for FP<'_, T>
-    where
-        <T as embedded_hal::digital::ErrorType>::Error: defmt::Format,
-    {
-        type E = T::Error;
+    impl<I: Instance> FPTest<I> for FP {
+        const S: TestSelector = TestSelector::Sanity_Pin;
 
-        async fn setup(&mut self) -> Result<(), Self::E> {
+        async fn setup(&mut self, _: &mut FPPeripherals<'_, I>) -> Result<(), TestError> {
             Ok(())
         }
 
-        async fn run(&mut self) -> Result<(), Self::E> {
-            while !self.0.is_high()? {}
+        async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I>) -> Result<(), TestError> {
+            while peripherals.pin.is_low() {}
             Ok(())
         }
 
-        async fn teardown(&mut self) -> Result<(), Self::E> {
+        async fn teardown(
+            &mut self,
+            _: &mut FPPeripherals<'_, I>,
+        ) -> Result<(), TestError> {
             Ok(())
         }
     }
