@@ -8,7 +8,7 @@ use crate::{
 #[cfg(feature = "fp")]
 use {
     crate::fp::{FPPeripherals, FPTest},
-    embassy_rp::i2c::Instance,
+    embassy_rp::{i2c, pio},
 };
 
 /// A simple sanity test that sets a pin high for the tester to check if it goes high
@@ -56,19 +56,19 @@ pub mod pin_test {
     pub struct FP;
 
     #[cfg(feature = "fp")]
-    impl<I: Instance> FPTest<I> for FP {
+    impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for FP {
         const S: TestSelector = TestSelector::Sanity_Pin;
 
-        async fn setup(&mut self, _: &mut FPPeripherals<'_, I>) -> Result<(), TestError> {
+        async fn setup(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
             Ok(())
         }
 
-        async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I>) -> Result<(), TestError> {
+        async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
             while peripherals.pin.is_low() {}
             Ok(())
         }
 
-        async fn teardown(&mut self, _: &mut FPPeripherals<'_, I>) -> Result<(), TestError> {
+        async fn teardown(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
             Ok(())
         }
     }

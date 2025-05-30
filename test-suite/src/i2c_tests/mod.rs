@@ -1,11 +1,11 @@
 use defmt::{Format, error, trace};
 
 #[cfg(feature = "fp")]
-use crate::fp::{FPPeripherals, FPTest};
-#[cfg(feature = "fp")]
-use embassy_rp::i2c::Instance;
-#[cfg(feature = "fp")]
-use tester::{I2cSlaveTestError, I2cSlaveTester};
+use {
+    crate::fp::{FPPeripherals, FPTest},
+    embassy_rp::{i2c, pio},
+    tester::{I2cSlaveTestError, I2cSlaveTester},
+};
 
 use crate::{
     TestError,
@@ -18,6 +18,7 @@ use embedded_hal::i2c::I2c;
 
 pub const I2C_DEFAULT_ADDRESS: u8 = 0x55;
 
+pub mod i2c_slave;
 #[cfg(feature = "fp")]
 pub mod tester;
 
@@ -92,14 +93,14 @@ pub mod simple_read {
     pub struct FP;
 
     #[cfg(feature = "fp")]
-    impl<I: Instance> FPTest<I> for FP {
+    impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for FP {
         const S: TestSelector = TestSelector::I2C_SimpleRead;
 
-        async fn setup(&mut self, _: &mut FPPeripherals<'_, I>) -> Result<(), TestError> {
+        async fn setup(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
             Ok(())
         }
 
-        async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I>) -> Result<(), TestError> {
+        async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
             I2cSlaveTester::new(&mut peripherals.i2c)
                 .expect_read(PAYLOAD)
                 .run()
@@ -113,7 +114,7 @@ pub mod simple_read {
 
         async fn teardown(
             &mut self,
-            peripherals: &mut FPPeripherals<'_, I>,
+            peripherals: &mut FPPeripherals<'_, I, P>,
         ) -> Result<(), TestError> {
             peripherals.i2c.reset();
             Ok(())
@@ -165,14 +166,14 @@ pub mod simple_write {
     pub struct FP;
 
     #[cfg(feature = "fp")]
-    impl<I: Instance> FPTest<I> for FP {
+    impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for FP {
         const S: TestSelector = TestSelector::I2C_SimpleWrite;
 
-        async fn setup(&mut self, _: &mut FPPeripherals<'_, I>) -> Result<(), TestError> {
+        async fn setup(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
             Ok(())
         }
 
-        async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I>) -> Result<(), TestError> {
+        async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
             I2cSlaveTester::new(&mut peripherals.i2c)
                 .expect_write(PAYLOAD)
                 .expect_write(PAYLOAD)
@@ -188,7 +189,7 @@ pub mod simple_write {
 
         async fn teardown(
             &mut self,
-            peripherals: &mut FPPeripherals<'_, I>,
+            peripherals: &mut FPPeripherals<'_, I, P>,
         ) -> Result<(), TestError> {
             peripherals.i2c.reset();
             Ok(())

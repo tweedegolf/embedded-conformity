@@ -1,0 +1,17 @@
+.program i2c_slave
+.side_set 1 opt pindirs
+    
+.wrap_target
+; wait for i2c start condition
+
+wait_idle:
+    wait 1 pin 0   ; Wait for SDA high (idle)
+    wait 1 pin 1   ; Wait for SCL high (idle)
+
+wait_start:
+    wait 0 pin 1   ; Wait for SDA low (potential start)
+    irq set 0 
+    ; now read the address byte
+    
+    ; -- TODO
+.wrap

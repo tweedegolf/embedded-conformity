@@ -16,7 +16,6 @@ strum = { version = "0.26", features = ["derive"], default-features = false }
 
 rand = { optional = true, version = "0.9.1" }
 
-
 [features]
 std = [ "serde/std", "postcard/alloc", "rand" ]
 fp = ["embassy-rp"]
