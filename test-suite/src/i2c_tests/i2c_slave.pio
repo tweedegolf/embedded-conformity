@@ -1,6 +1,6 @@
 .program i2c_slave
 .side_set 1 opt pindirs
-    
+ 
 .wrap_target
 
 ; pin 0 is SDA
@@ -15,17 +15,16 @@ wait_start:
 
     ; Read 8 address bits (MSB first)
     set y, 7      ; Bit counter
-    set x, 0      ; Clear x (will hold the address)
-read_addr_bit:
+read_addr:
     wait 1 pin 1  ; Wait for SCL high
     in pins 1     ; Read SDA
     wait 0 pin 1  ; Wait for SCL low
-    jmp y-- read_addr_bit ; Read bit and decrement y
-    mov x, isr
+    jmp y-- read_addr ; Read bit and decrement y
     irq set 1
     ; Acknowledge the address
-    wait 1 pin 1  ; Wait for SCL high
-    set pindirs, 1 side 0
+    wait 1 pin 1 ; Wait for SCL high
+    set pins 0 side 1; Set SDA low (ACK)
     wait 0 pin 1  ; Wait for SCL low
+    irq set 2
 
 .wrap

@@ -19,8 +19,10 @@ pub async fn test_pio_i2c_slave<'a, I: embassy_rp::pio::Instance>(
     scl.set_pull(Pull::Up);
 
     let mut config = Config::<I>::default();
-    config.set_in_pins(&[sda]);
-    config.use_program(&program, &[scl]);
+    config.set_in_pins(&[sda, scl]);
+    config.set_out_pins(&[sda]);
+    config.set_set_pins(&[sda]);
+    config.use_program(&program, &[sda]);
     config.shift_in = ShiftConfig {
         threshold: 8,
         direction: ShiftDirection::Left,
@@ -33,7 +35,6 @@ pub async fn test_pio_i2c_slave<'a, I: embassy_rp::pio::Instance>(
     pio.sm0.set_enable(true); // Start the state machine
 
     pio.irq0.wait().await; // Wait for the IRQ to be triggered
-    pio.irq_flags.clear(0);
 
     pio.irq1.wait().await; // Wait for the IRQ to be triggered
     let rx = pio.sm0.rx();
@@ -45,10 +46,16 @@ pub async fn test_pio_i2c_slave<'a, I: embassy_rp::pio::Instance>(
     debug!(
         "I2C Start, Address: 0x{:X}, Mode: {};",
         address,
-        if mode { intern!("Read") } else { intern!("Write") }
+        if mode {
+            intern!("Read")
+        } else {
+            intern!("Write")
+        }
     );
 
-    // debug!("............expected: {:#08b}", 0x55 | 0b1000_0000);
+    pio.irq2.wait().await;
+
+    debug!("I2C address acked");
 
     unimplemented!("Handle I2C slave communication here");
 }
