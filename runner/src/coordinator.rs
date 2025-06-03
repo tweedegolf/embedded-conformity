@@ -277,7 +277,7 @@ impl Coordinator {
     }
 }
 
-pub const TIMEOUT: Duration = Duration::from_millis(5000);
+pub const TIMEOUT: Duration = Duration::from_millis(10_000);
 fn check_timeouts(hm: &HashMap<u32, Instant>) -> bool {
     hm.iter().any(|(_, v)| v.elapsed() > TIMEOUT)
 }

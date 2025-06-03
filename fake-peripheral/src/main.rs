@@ -5,17 +5,23 @@ use embassy_executor::Spawner;
 use embassy_rp::{
     bind_interrupts,
     gpio::{Input, Level, Output},
-    i2c::InterruptHandler,
+    i2c,
     i2c_slave::{self, I2cSlave},
     peripherals::{I2C0, I2C1, PIO0},
+    pio,
+    pio::Pio,
 };
 use embassy_time::{Duration, with_timeout};
 use panic_probe as _;
-use test_suite::fp::{embassy_rp, run_fp_tests, FPPeripherals};
+use test_suite::fp::{embassy_rp, run_fp_tests, FPPeripherals, PioPeripheral};
 
 // mod pio;
-bind_interrupts!(struct Irqs {
-    I2C0_IRQ => InterruptHandler<I2C0>;
+bind_interrupts!(struct I2cIrq {
+    I2C0_IRQ => i2c::InterruptHandler<I2C0>;
+});
+
+bind_interrupts!(struct PioIrq {
+    PIO0_IRQ_0 => pio::InterruptHandler<PIO0>;
 });
 
 #[embassy_executor::main]
@@ -30,10 +36,18 @@ async fn main(_spawner: Spawner) {
 
     let config = i2c_slave::Config::default();
     // scl, sda
-    let slave = I2cSlave::new(p.I2C0, p.PIN_9, p.PIN_8, Irqs, config);
+    let slave = I2cSlave::new(p.I2C0, p.PIN_1, p.PIN_0, I2cIrq, config);
+
+    let scl = p.PIN_9;
+    let sda = p.PIN_8;
+
+    let mut pio = Pio::new(p.PIO0, PioIrq);
+    let scl = pio.common.make_pio_pin(scl);
+    let sda = pio.common.make_pio_pin(sda);
 
     let peripherals = FPPeripherals {
         i2c: slave,
+        pio: PioPeripheral { pio, scl, sda },
         pin: input_one,
     };
 

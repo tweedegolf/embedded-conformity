@@ -5,6 +5,7 @@ use probe_rs::rtt::UpChannel;
 use tracing::{Level, error, event, warn};
 
 use crate::coordinator::ArcSession;
+use defmt_parser::Level as DefmtLevel;
 
 const READ_BUFFER_SIZE: usize = 1024;
 
@@ -81,104 +82,38 @@ fn location_info(locs: Option<&Locations>, frame: &Frame, current_dir: &Path) ->
     (file, line, mod_path)
 }
 
+macro_rules! log_event {
+    ($target:expr, $level:expr, $loc:expr, $frame:expr) => {
+        event!(
+            target: $target,
+            $level,
+            file = $loc.0,
+            line = $loc.1,
+            module = $loc.2,
+            "{}",
+            $frame.display_message()
+        )
+    };
+}
+
 fn log_frame(target: Target, frame: &Frame<'_>, loc: &LocationInfo) {
-    const FP: &str = "fp";
-    const DUT: &str = "dut";
+    const FP_TARGET: &str = "fp";
+    const DUT_TARGET: &str = "dut";
 
     match target {
         Target::FakePeripheral => match frame.level() {
-            Some(defmt_parser::Level::Trace) => event!(
-                target: FP,
-                Level::TRACE,
-                file = loc.0,
-                line = loc.1,
-                module = loc.2,
-                "{}",
-                frame.display_message()
-            ),
-            Some(defmt_parser::Level::Debug) => event!(
-                target: FP,
-                Level::DEBUG,
-                file = loc.0,
-                line = loc.1,
-                module = loc.2,
-                "{}",
-                frame.display_message()
-            ),
-            Some(defmt_parser::Level::Info) => event!(
-                target: FP,
-                Level::INFO,
-                file = loc.0,
-                line = loc.1,
-                module = loc.2,
-                "{}",
-                frame.display_message()
-            ),
-            None | Some(defmt_parser::Level::Warn) => event!(
-                target: FP,
-                Level::WARN,
-                file = loc.0,
-                line = loc.1,
-                module = loc.2,
-                "{}",
-                frame.display_message()
-            ),
-            Some(defmt_parser::Level::Error) => event!(
-                target: FP,
-                Level::ERROR,
-                file = loc.0,
-                line = loc.1,
-                module = loc.2,
-                "{}",
-                frame.display_message()
-            ),
+            Some(DefmtLevel::Trace) => log_event!(FP_TARGET, Level::TRACE, loc, frame),
+            Some(DefmtLevel::Debug) => log_event!(FP_TARGET, Level::DEBUG, loc, frame),
+            Some(DefmtLevel::Info) => log_event!(FP_TARGET, Level::INFO, loc, frame),
+            None | Some(DefmtLevel::Warn) => log_event!(FP_TARGET, Level::WARN, loc, frame),
+            Some(DefmtLevel::Error) => log_event!(FP_TARGET, Level::ERROR, loc, frame),
         },
         Target::DeviceUnderTest => match frame.level() {
-            Some(defmt_parser::Level::Trace) => event!(
-                target: DUT,
-                Level::TRACE,
-                file = loc.0,
-                line = loc.1,
-                module = loc.2,
-                "{}",
-                frame.display_message()
-            ),
-            Some(defmt_parser::Level::Debug) => event!(
-                target: DUT,
-                Level::DEBUG,
-                file = loc.0,
-                line = loc.1,
-                module = loc.2,
-                "{}",
-                frame.display_message()
-            ),
-            Some(defmt_parser::Level::Info) => event!(
-                target: DUT,
-                Level::INFO,
-                file = loc.0,
-                line = loc.1,
-                module = loc.2,
-                "{}",
-                frame.display_message()
-            ),
-            None | Some(defmt_parser::Level::Warn) => event!(
-                target: DUT,
-                Level::WARN,
-                file = loc.0,
-                line = loc.1,
-                module = loc.2,
-                "{}",
-                frame.display_message()
-            ),
-            Some(defmt_parser::Level::Error) => event!(
-                target: DUT,
-                Level::ERROR,
-                file = loc.0,
-                line = loc.1,
-                module = loc.2,
-                "{}",
-                frame.display_message()
-            ),
+            Some(DefmtLevel::Trace) => log_event!(DUT_TARGET, Level::TRACE, loc, frame),
+            Some(DefmtLevel::Debug) => log_event!(DUT_TARGET, Level::DEBUG, loc, frame),
+            Some(DefmtLevel::Info) => log_event!(DUT_TARGET, Level::INFO, loc, frame),
+            None | Some(DefmtLevel::Warn) => log_event!(DUT_TARGET, Level::WARN, loc, frame),
+            Some(DefmtLevel::Error) => log_event!(DUT_TARGET, Level::ERROR, loc, frame),
         },
     }
 }
