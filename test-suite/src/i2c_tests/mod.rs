@@ -65,7 +65,6 @@ pub mod simple_read {
         fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
             let mut buf = [0; PAYLOAD.len()];
 
-            trace!("reading i2c");
             session
                 .i2c
                 .read(I2C_DEFAULT_ADDRESS, &mut buf)
@@ -73,10 +72,9 @@ pub mod simple_read {
                     error!("{}", e);
                     TestError::RunError
                 })?;
-            trace!("done reading i2c");
 
             if &buf != PAYLOAD {
-                error!("{}", "i2c: payload mismatched what was read");
+                error!("i2c: payload mismatched what was read, got: {}, expected: {}", &buf, PAYLOAD);
                 return Err(TestError::RunError);
             }
 

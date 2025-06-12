@@ -85,13 +85,12 @@ pub async fn run_fp_tests<I: i2c::Instance, P: pio::Instance>(mut ctx: Context, 
                         }
                         HostToFPCommand::Run(n @ 1) => {
                             debug!("running test {}", n);
-                            debug!("running i2c slave test with pio");
                             test_pio_i2c_slave(
                                 &mut peripherals.pio.pio,
                                 &mut peripherals.pio.sda,
                                 &mut peripherals.pio.scl,
                             ).await;
-                            trace!("done running i2c slave test with pio");
+                            defmt::unimplemented!("finished pio test");
                             // let test = i2c_tests::simple_read::FP;
                             // run_fp_test(n, test, &mut ctx.channels.up, &mut peripherals).await;
                         }

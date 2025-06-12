@@ -18,30 +18,32 @@ read_addr:
     wait 0 pin 1  ; Wait for SCL low
     jmp y-- read_addr ; Read bit and decrement y
 
-    ; irq set 1
+    irq set 1
 
     ; Acknowledge the address
-    set pins 0 side 1 [2]; Set SDA low (ACK)
-    wait 1 pin 1 ; Wait for SCL high
     nop [7]
+    set pins 0 side 1; Set SDA low (ACK)
+
+    wait 1 pin 1 ; Wait for SCL high
+    nop
     wait 0 pin 1  ; Wait for SCL low
+
     irq set 2
 
-  set y, 7
+  set y, 7 [7]
 reply:
-  ; TODO: rewrite to set data on SCL going DOWN instead of during the clock cycle
+  out pins, 1 ; set sda to one
   wait 1 pin 1 ; wait for scl
-  set pins, 1 ; set sda to one
+  nop
   wait 0 pin 1; wait for scl
+  nop [7]
   jmp y-- reply
 
-  nop side 0 ; switch pin dirs
+  nop side 0 ; SDA to input
 
   ; we expect a NAK + STOP
   wait 1 pin 1
   wait 0 pin 0
-
-  irq set 3
 
   ; stop
   wait 1 pin 1
