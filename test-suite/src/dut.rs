@@ -28,13 +28,6 @@ where
             }
             HostToDUTCommand::Run(n @ 1) => {
                 debug!("running test {}", n);
-                for i in 0..100 {
-                    if i % 2 == 0 {
-                        session.pin.set_low().unwrap();
-                    } else {
-                        session.pin.set_high().unwrap();
-                    }
-                }
                 let test = i2c_tests::simple_read::Dut;
                 run_dut_test(n, test, &mut ctx.channels.up, &mut session);
             }

@@ -34,28 +34,30 @@ pub async fn test_pio_i2c_slave<'a, I: embassy_rp::pio::Instance>(
 
     pio.sm0.set_enable(true); // Start the state machine
 
-    pio.irq0.wait().await; // Wait for the IRQ to be triggered
+    // pio.irq0.wait().await; // Wait for the IRQ to be triggered
 
-    pio.irq1.wait().await; // Wait for the IRQ to be triggered
-    let rx = pio.sm0.rx();
-    let data = rx.pull().to_be_bytes()[3];
+    // pio.irq1.wait().await; // Wait for the IRQ to be triggered
+    // let rx = pio.sm0.rx();
+    // let data = rx.pull().to_be_bytes()[3];
+    //
+    // let address = data >> 1;
+    // let mode = data & 1 == 1; // true is read, false is write
 
-    let address = data >> 1;
-    let mode = data & 1 == 1; // true is read, false is write
+    // debug!(
+    //     "I2C Start, Address: 0x{:X}, Mode: {};",
+    //     address,
+    //     if mode {
+    //         intern!("Read")
+    //     } else {
+    //         intern!("Write")
+    //     }
+    // );
 
-    debug!(
-        "I2C Start, Address: 0x{:X}, Mode: {};",
-        address,
-        if mode {
-            intern!("Read")
-        } else {
-            intern!("Write")
-        }
-    );
-
-    pio.irq2.wait().await;
+    // pio.irq2.wait().await;
 
     debug!("I2C address acked");
+
+    pio.irq3.wait().await;
 
     unimplemented!("Handle I2C slave communication here");
 }
