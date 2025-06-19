@@ -3,6 +3,8 @@
  
 ; pin 0 is SDA
 ; pin 1 is SCL
+
+; TODO: Figure out delays
 wait_idle:
     wait 1 pin 0 ; Wait for SDA high (idle state)
     wait 1 pin 1 ; wait for SCL high (idle state)
