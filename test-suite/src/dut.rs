@@ -21,45 +21,44 @@ where
 
         match data.command {
             HostToDUTCommand::Init => {}
-            HostToDUTCommand::Run(n @ 0) => {
-                debug!("running test {}", n);
+            HostToDUTCommand::Run(t@TestSelector::Sanity_Pin) => {
+                debug!("running test {}", t);
                 let test = sanity_tests::pin_test::Dut;
-                run_dut_test(n, test, &mut ctx.channels.up, &mut session);
+                run_dut_test(t, test, &mut ctx.channels.up, &mut session);
             }
-            HostToDUTCommand::Run(n @ 1) => {
-                debug!("running test {}", n);
+            HostToDUTCommand::Run(t@TestSelector::I2C_SimpleRead) => {
+                debug!("running test {:?}",t);
                 let test = i2c_tests::simple_read::Dut;
-                run_dut_test(n, test, &mut ctx.channels.up, &mut session);
+                run_dut_test(t, test, &mut ctx.channels.up, &mut session);
             }
-            HostToDUTCommand::Run(n @ 2) => {
-                debug!("running test {}", n);
+            HostToDUTCommand::Run(t@TestSelector::I2C_SimpleWrite) => {
+                debug!("running test {:?}", t);
                 let test = i2c_tests::simple_write::Dut;
-                run_dut_test(n, test, &mut ctx.channels.up, &mut session);
+                run_dut_test(t, test, &mut ctx.channels.up, &mut session);
             }
-            HostToDUTCommand::Run(_) => defmt::todo!(),
         }
     });
 }
 
 fn run_dut_test<I2C: I2c, P: OutputPin>(
-    n: u32,
+    t: TestSelector,
     mut test: impl DutTest<I2C, P>,
     up: &mut UpChannel,
     session: &mut DutPeripherals<I2C, P>,
 ) {
     if let Err(e) = test.setup(session) {
-        error!("Encountered error during setup of test {}: {:?}", n, &e);
-        send_to_host(DUTToHost::TestFailure(n), up);
+        error!("Encountered error during setup of test {}: {:?}", t, &e);
+        send_to_host(DUTToHost::TestFailure(t), up);
         return;
     }
 
     if let Err(e) = test.run(session) {
-        error!("Encountered error during run of test {}: {:?}", n, &e);
-        send_to_host(DUTToHost::TestFailure(n), up);
+        error!("Encountered error during run of test {}: {:?}", t, &e);
+        send_to_host(DUTToHost::TestFailure(t), up);
         return;
     }
 
-    send_to_host(DUTToHost::Success(n), up);
+    send_to_host(DUTToHost::Success(t), up);
 
     // we crash as we can not guarantee to correctness of the system
     unwrap!(test.teardown(session))

@@ -12,6 +12,8 @@ extern crate alloc;
 #[cfg(feature = "std")]
 use rand::RngCore;
 
+use crate::list_of_tests::TestSelector;
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct HostToDUT {
     pub id: u32,
@@ -33,14 +35,14 @@ impl HostToDUT {
 pub enum HostToDUTCommand {
     /// Run a specific test
     Init,
-    Run(u32),
+    Run(TestSelector),
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum DUTToHost {
     Ack(u32),
-    TestFailure(u32),
-    Success(u32),
+    TestFailure(TestSelector),
+    Success(TestSelector),
     Finished,
 }
 
@@ -64,14 +66,14 @@ impl HostToFP {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum HostToFPCommand {
     Init,
-    Run(u32),
+    Run(TestSelector),
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum FPToHost {
     Ack(u32),
-    TestFailure(u32),
-    Success(u32),
+    TestFailure(TestSelector),
+    Success(TestSelector),
 }
 
 pub fn to_bytes<T: Serialize>(message: T) -> Vec<u8, 128> {

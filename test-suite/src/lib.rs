@@ -6,6 +6,7 @@ use postcard::accumulator::{CobsAccumulator, FeedResult};
 use rtt_target::{ChannelMode, DownChannel, UpChannel, rtt_init, set_defmt_channel};
 
 pub use postcard;
+pub use strum;
 use serde::Deserialize;
 
 pub mod i2c_tests;
@@ -57,8 +58,6 @@ pub fn init() -> Context {
         },
     }
 }
-
-pub const NUM_TESTS: u32 = 3;
 
 fn read_cobs<T: for<'de> Deserialize<'de>>(down: &mut DownChannel, mut fun: impl FnMut(T)) -> ! {
     let mut raw_buf = [0u8; 128];

@@ -3,53 +3,71 @@
  
 ; pin 0 is SDA
 ; pin 1 is SCL
-
-; TODO: Figure out delays
 wait_idle:
     wait 1 pin 0 ; Wait for SDA high (idle state)
     wait 1 pin 1 ; wait for SCL high (idle state)
 
 wait_start:
-    wait 0 pin 1   ; Wait for SCL low (potential start)
+  wait 0 pin 1   ; Wait for SCL low (start condition)
 
-    ; Read 8 address bits (MSB first)
-    set y, 7      ; Bit counter
+  ; Read 7 address bits
+  set y, 6      ; Bit counter
 read_addr:
-    wait 1 pin 1  ; Wait for SCL high
-    in pins 1     ; Read SDA
-    wait 0 pin 1  ; Wait for SCL low
-    jmp y-- read_addr ; Read bit and decrement y
+  wait 1 pin 1  ; Wait for SCL high
+  in pins 1     ; Read SDA
+  wait 0 pin 1  ; Wait for SCL low
+  jmp y-- read_addr ; Read bit and decrement y
 
-    irq set 1
+  ; Read R/W bit
+  wait 1 pin 1; SCL high
+  in pins 1
+  jmp pin set_read
+  set x, 0 ; set write
+  jmp done_set
+set_read:
+  set x, 1; set read
+done_set:
+  wait 0 pin 1 ; SCL low
 
-    ; Acknowledge the address
-    nop [7]
-    set pins 0 side 1; Set SDA low (ACK)
+  irq set 0
 
-    wait 1 pin 1 ; Wait for SCL high
-    nop
-    wait 0 pin 1  ; Wait for SCL low
-
-    irq set 2
-
-  set y, 7 [7]
-reply:
-  out pins, 1 ; set sda to one
-  wait 1 pin 1 ; wait for scl
-  nop
-  wait 0 pin 1; wait for scl
+addr_ack:
+  ; Acknowledge the address
+  set pins 0 side 1 [7]; Set SDA low (ACK)
   nop [7]
-  jmp y-- reply
+
+  wait 1 pin 1 ; Wait for SCL high
+  wait 0 pin 1  ; Wait for SCL low
+
+  ; use x to determine Write (0) or Read (1)
+  jmp !x pre_write
+
+public pre_read:
+  irq set 1
+  set y, 7 ; Init counter to count down write or read
+read:
+  out pins, 1 [7] ; shift one bit out from OSR to pins (pin 0, sda)
+  wait 1 pin 1 ; wait for scl
+  wait 0 pin 1; wait for scl
+  jmp y-- read
 
   nop side 0 ; SDA to input
 
-  ; we expect a NAK + STOP
-  wait 1 pin 1
-  wait 0 pin 0
+  ; NAK
+  ; wait 1 pin 1
+  ; wait 0 pin 0
 
   ; stop
-  wait 1 pin 1
-  wait 1 pin 0
+  ; wait 1 pin 1
+  ; wait 1 pin 0
+
+  irq set 3
+
+pre_write:
+  irq set 2
+  set y, 7
+write:
+  ; TODO
 
   irq set 3
 

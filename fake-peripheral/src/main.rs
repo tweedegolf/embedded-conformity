@@ -7,15 +7,13 @@ use embassy_rp::{
     gpio::{Input, Level, Output},
     i2c,
     i2c_slave::{self, I2cSlave},
-    peripherals::{I2C0, I2C1, PIO0},
+    peripherals::{I2C0, PIO0},
     pio,
     pio::Pio,
 };
-use embassy_time::{Duration, with_timeout};
 use panic_probe as _;
-use test_suite::fp::{embassy_rp, run_fp_tests, FPPeripherals, PioPeripheral};
+use test_suite::fp::{FPPeripherals, PioPeripheral, embassy_rp, run_fp_tests};
 
-// mod pio;
 bind_interrupts!(struct I2cIrq {
     I2C0_IRQ => i2c::InterruptHandler<I2C0>;
 });

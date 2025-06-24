@@ -17,11 +17,12 @@ use probe_rs::{
 };
 use serde::{Deserialize, Serialize};
 use test_suite::{
-    NUM_TESTS,
+    list_of_tests::TestSelector,
     postcard::accumulator::{CobsAccumulator, FeedResult},
     protocol::{
         DUTToHost, FPToHost, HostToDUT, HostToDUTCommand, HostToFP, HostToFPCommand, to_bytes_alloc,
     },
+    strum::IntoEnumIterator as _,
 };
 use tracing::{debug, error, info};
 
@@ -174,6 +175,8 @@ impl Coordinator {
         // DUT: DUT to Host Thread
         let from_dut = Self::create_receiver(self.dut_session.clone(), dut_up);
 
+        info!("Going to send test message");
+
         to_fp
             .send(HostToFP {
                 id: 13,
@@ -195,9 +198,9 @@ impl Coordinator {
 
         info!("Devices initialized, starting tests...");
 
-        for n in 0..NUM_TESTS {
-            let fp_msg = HostToFP::new(HostToFPCommand::Run(n));
-            let dut_msg = HostToDUT::new(HostToDUTCommand::Run(n));
+        for t in TestSelector::iter() {
+            let fp_msg = HostToFP::new(HostToFPCommand::Run(t));
+            let dut_msg = HostToDUT::new(HostToDUTCommand::Run(t));
             fp_acks.insert(fp_msg.id, Instant::now());
             dut_acks.insert(dut_msg.id, Instant::now());
 
@@ -237,10 +240,10 @@ impl Coordinator {
                         FPToHost::Ack(id) => {
                             assert!(fp_acks.remove(&id).is_some());
                         }
-                        FPToHost::TestFailure(n) => error!("FRM FP: Test {n} failed"),
-                        FPToHost::Success(gn) => {
-                            assert_eq!(n, gn);
-                            debug!("fp success {n}");
+                        FPToHost::TestFailure(a) => error!("FRM FP: Test {a:?} failed"),
+                        FPToHost::Success(a) => {
+                            assert_eq!(t, a);
+                            debug!("fp success {t:?}");
                             fp_success = true;
                         }
                     },
@@ -253,10 +256,10 @@ impl Coordinator {
                         DUTToHost::Ack(id) => {
                             assert!(dut_acks.remove(&id).is_some());
                         }
-                        DUTToHost::TestFailure(n) => error!("FRM DT: Test {n} failed"),
-                        DUTToHost::Success(gn) => {
-                            assert_eq!(n, gn);
-                            debug!("dut success {n}");
+                        DUTToHost::TestFailure(a) => error!("FRM DT: Test {a:?} failed"),
+                        DUTToHost::Success(a) => {
+                            assert_eq!(t, a);
+                            debug!("dut success {t:?}");
                             dut_success = true;
                         }
                         DUTToHost::Finished => todo!(),
@@ -270,7 +273,7 @@ impl Coordinator {
                 }
             }
 
-            info!("Test {n}: Success ({}ms)", now.elapsed().as_millis());
+            info!("Test {t:?}: Success ({}ms)", now.elapsed().as_millis());
         }
 
         exit(0);
