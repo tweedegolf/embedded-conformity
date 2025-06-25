@@ -18,7 +18,7 @@ use embedded_hal::i2c::I2c;
 
 pub const I2C_DEFAULT_ADDRESS: u8 = 0x55;
 
-pub mod i2c_slave;
+pub mod i2c_pio;
 #[cfg(feature = "fp")]
 pub mod tester;
 

@@ -130,11 +130,8 @@ fn run_test(cfg: Config) {
     );
     flash_firmware(dut, &cfg.device_under_test.chip, dut_elf.as_path());
 
-    println!("starting device");
     let dut_session = start_device(dut, &cfg.device_under_test.chip);
-    println!("dut done");
     let fp_session = start_device(fake_peripheral, &cfg.fake_peripheral.chip);
-    println!("fp done");
 
     Coordinator::new(cfg, dut_session, dut_elf, fp_session, fake_elf).run();
 }

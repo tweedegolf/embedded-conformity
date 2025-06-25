@@ -61,7 +61,7 @@ read:
   ; wait 1 pin 1
   ; wait 1 pin 0
 
-  irq set 3
+  irq wait 3
 
 pre_write:
   irq set 2
@@ -69,5 +69,5 @@ pre_write:
 write:
   ; TODO
 
-  irq set 3
+  irq wait 3
 
