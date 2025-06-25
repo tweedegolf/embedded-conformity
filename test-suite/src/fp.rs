@@ -12,7 +12,7 @@ use postcard::accumulator::{CobsAccumulator, FeedResult};
 use rtt_target::UpChannel;
 
 use crate::{
-    i2c_tests::{self, i2c_pio::{test_pio_i2c_slave, I2C_SimpleRead_PIO}}, list_of_tests::TestSelector, protocol::{send_to_host, FPToHost, HostToFP, HostToFPCommand}, sanity_tests, Context, TestError
+    i2c_tests::{self, i2c_pio::{I2C_SimpleRead_PIO, I2C_SimpleWrite_PIO}}, list_of_tests::TestSelector, protocol::{send_to_host, FPToHost, HostToFP, HostToFPCommand}, sanity_tests, Context, TestError
 };
 
 pub struct FPPeripherals<'a, I: i2c::Instance, P: pio::Instance> {
@@ -101,9 +101,7 @@ pub async fn run_fp_tests<I: i2c::Instance, P: pio::Instance>(
                         }
                         HostToFPCommand::Run(t@TestSelector::I2C_SimpleWrite) => {
                             debug!("running test {}", t);
-                            defmt::unimplemented!("simple write");
-                            let test = i2c_tests::simple_write::FP;
-                            run_fp_test(t, test, &mut ctx.channels.up, &mut peripherals).await;
+                            run_fp_test(t, I2C_SimpleWrite_PIO, &mut ctx.channels.up, &mut peripherals).await;
                         }
                     }
                     remaining

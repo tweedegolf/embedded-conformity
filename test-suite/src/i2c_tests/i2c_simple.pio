@@ -40,9 +40,9 @@ addr_ack:
   wait 0 pin 1  ; Wait for SCL low
 
   ; use x to determine Write (0) or Read (1)
-  jmp !x pre_write
+  ; jmp !x pre_write
 
-public pre_read:
+pre_read:
   irq set 1
   set y, 7 ; Init counter to count down write or read
 read:
@@ -62,12 +62,3 @@ read:
   ; wait 1 pin 0
 
   irq wait 3
-
-pre_write:
-  irq set 2
-  set y, 7
-write:
-  ; TODO
-
-  irq wait 3
-
