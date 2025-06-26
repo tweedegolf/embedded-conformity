@@ -27,28 +27,33 @@ read_addr:
 set_read:
   set x, 1; set read
 done_set:
-  wait 0 pin 1 ; SCL low
+  wait 0 pin 1 [7] ; SCL low
 
   irq set 0
 
 addr_ack:
   ; Acknowledge the address
-  set pins 0 side 1 [7]; Set SDA low (ACK)
-  nop [7]
+  set pins 0 side 1; Set SDA low (ACK)
 
   wait 1 pin 1 ; Wait for SCL high
   wait 0 pin 1  ; Wait for SCL low
 
   ; use x to determine Write (0) or Read (1)
-  ; jmp !x pre_write
+  irq set 1
+  set y, 7 [7] ; Init counter to count down write or read
+
+  jmp !x pre_write
 
 pre_read:
-  irq set 1
-  set y, 7 ; Init counter to count down write or read
+  nop side 1 ; set SDA to output
+  jmp read
+pre_write:
+  nop side 0 ; set SDA to input 
 read:
-  out pins, 1 [7] ; shift one bit out from OSR to pins (pin 0, sda)
+  out pins, 1; shift one bit out from OSR to pins (pin 0, sda)
   wait 1 pin 1 ; wait for scl
-  wait 0 pin 1; wait for scl
+  in pins, 1 ; Read SDA
+  wait 0 pin 1 [7] ; wait for scl
   jmp y-- read
 
   nop side 0 ; SDA to input

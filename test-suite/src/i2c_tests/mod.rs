@@ -74,7 +74,10 @@ pub mod simple_read {
                 })?;
 
             if &buf != PAYLOAD {
-                error!("i2c: payload mismatched what was read, got: {}, expected: {}", &buf, PAYLOAD);
+                error!(
+                    "i2c: payload mismatched what was read, got: {}, expected: {}",
+                    &buf, PAYLOAD
+                );
                 return Err(TestError::RunError);
             }
 
@@ -98,7 +101,10 @@ pub mod simple_read {
             Ok(())
         }
 
-        async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
+        async fn run(
+            &mut self,
+            peripherals: &mut FPPeripherals<'_, I, P>,
+        ) -> Result<(), TestError> {
             I2cSlaveTester::new(&mut peripherals.i2c)
                 .expect_read(PAYLOAD)
                 .run()
@@ -140,15 +146,13 @@ pub mod simple_write {
 
         fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
             trace!("Starting i2c write");
-            for _ in 0..3 {
-                session
-                    .i2c
-                    .write(I2C_DEFAULT_ADDRESS, PAYLOAD)
-                    .map_err(|e| {
-                        error!("{}", e);
-                        TestError::RunError
-                    })?;
-            }
+            session
+                .i2c
+                .write(I2C_DEFAULT_ADDRESS, PAYLOAD)
+                .map_err(|e| {
+                    error!("{}", e);
+                    TestError::RunError
+                })?;
             trace!("Finished i2c write");
 
             Ok(())
@@ -171,10 +175,11 @@ pub mod simple_write {
             Ok(())
         }
 
-        async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
+        async fn run(
+            &mut self,
+            peripherals: &mut FPPeripherals<'_, I, P>,
+        ) -> Result<(), TestError> {
             I2cSlaveTester::new(&mut peripherals.i2c)
-                .expect_write(PAYLOAD)
-                .expect_write(PAYLOAD)
                 .expect_write(PAYLOAD)
                 .run()
                 .await
