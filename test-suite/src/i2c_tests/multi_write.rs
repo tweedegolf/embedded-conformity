@@ -11,7 +11,6 @@ use defmt::{assert, assert_eq, debug, error, expect, info, intern, panic, trace,
 #[cfg(feature = "fp")]
 use {
     crate::fp::{FPPeripherals, FPTest, PioPeripheral},
-    crate::i2c_tests::pio_tests::simple_read_write::{simple_init_pio, simple_reset_pio},
     crate::i2c_tests::tester::I2cSlaveTester,
     embassy_rp::{
         gpio::Pull,
@@ -20,38 +19,30 @@ use {
     },
 };
 
-const PAYLOAD: u8 = 13;
+const PAYLOAD: [u8; 4] = [56, 12, 42, 18];
 
-/// The Device Under Test Test
-pub struct I2C_SimpleRead;
-pub struct I2C_SimpleRead_PIO;
+pub struct I2C_MultiWrite;
+pub struct I2C_MultiWrite_PIO;
 
-impl<P: OutputPin, T: I2c> DutTest<T, P> for I2C_SimpleRead
+impl<P: OutputPin, T: I2c> DutTest<T, P> for I2C_MultiWrite
 where
     T::Error: defmt::Format,
 {
-    const S: TestSelector = TestSelector::I2C_SimpleRead;
+    const S: TestSelector = TestSelector::I2C_MultiWrite;
 
     fn setup(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), ()> {
         Ok(())
     }
 
     fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), ()> {
-        let mut buf = [0; 1];
-
+        trace!("Starting i2c write");
         session
             .i2c
-            .read(I2C_DEFAULT_ADDRESS, &mut buf)
+            .write(I2C_DEFAULT_ADDRESS, &PAYLOAD)
             .map_err(|e| {
                 error!("{}", e);
             })?;
-
-        if buf[0] != PAYLOAD {
-            error!(
-                "i2c: payload mismatched what was read, got: {}, expected: {}",
-                &buf, PAYLOAD
-            );
-        }
+        trace!("Finished i2c write");
 
         Ok(())
     }
@@ -62,8 +53,8 @@ where
 }
 
 #[cfg(feature = "fp")]
-impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead {
-    const S: TestSelector = TestSelector::I2C_SimpleRead;
+impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_MultiWrite {
+    const S: TestSelector = TestSelector::I2C_MultiWrite;
 
     async fn setup(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
         Ok(())
@@ -71,7 +62,7 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead {
 
     async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
         I2cSlaveTester::new(&mut peripherals.i2c)
-            .expect_read(&[PAYLOAD])
+            .expect_write(&PAYLOAD)
             .run()
             .await
             .map_err(|e| {
@@ -86,19 +77,20 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead {
     }
 }
 
-// The PIO implementation of the I2C Simple Read test
 #[cfg(feature = "fp")]
-impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead_PIO {
-    const S: TestSelector = TestSelector::I2C_SimpleRead;
+impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_MultiWrite_PIO {
+    const S: TestSelector = TestSelector::I2C_MultiWrite;
 
     async fn setup(
         &mut self,
         peripherals: &mut crate::fp::FPPeripherals<'_, I, P>,
     ) -> Result<(), ()> {
+        use crate::i2c_tests::pio_tests::simple_read_write::simple_init_pio;
+
         simple_init_pio(&mut peripherals.pio);
 
-        let payload = (PAYLOAD as u32).to_be();
-        peripherals.pio.pio.sm0.tx().push(payload); // The Reply
+        let pio = &mut peripherals.pio.pio;
+        pio.sm0.tx().push(0u32.to_be()); // The Reply, 0 -> None
 
         Ok(())
     }
@@ -110,13 +102,21 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead_PIO {
         let pio = &mut peripherals.pio.pio;
 
         pio.sm0.set_enable(true); // Start the state machine
-        let data = pio.sm0.rx().wait_pull().await.to_be_bytes()[3];
 
+        let data = pio.sm0.rx().wait_pull().await.to_be_bytes()[3];
         let address = data >> 1;
         let mode = data & 1 == 1; // true is read, false is write
 
-        assert!(mode); // True == read
+        assert!(!mode); // True == read
         assert_eq!(address, I2C_DEFAULT_ADDRESS);
+
+        let write = pio.sm0.rx().wait_pull().await;
+
+        assert_eq!(PAYLOAD[0], write.to_be_bytes()[3]);
+
+        let write = pio.sm0.rx().wait_pull().await;
+
+        assert_eq!(PAYLOAD[1], write.to_be_bytes()[3]);
 
         pio.irq3.wait().await;
 
@@ -127,6 +127,8 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead_PIO {
         &mut self,
         peripherals: &mut crate::fp::FPPeripherals<'_, I, P>,
     ) -> Result<(), ()> {
+        use crate::i2c_tests::pio_tests::simple_read_write::simple_reset_pio;
+
         simple_reset_pio(&mut peripherals.pio);
         Ok(())
     }

@@ -19,9 +19,9 @@ pub mod pin_test {
     use super::*;
 
     /// The Device Under Test Test
-    pub struct Dut;
+    pub struct PinTest;
 
-    impl<I2C: I2c, P: OutputPin> DutTest<I2C, P> for Dut
+    impl<I2C: I2c, P: OutputPin> DutTest<I2C, P> for PinTest
     where
         <P as embedded_hal::digital::ErrorType>::Error: defmt::Format,
     {
@@ -46,22 +46,15 @@ pub mod pin_test {
         }
     }
 
-    /// The Fake Peripheral/Tester part of the test
     #[cfg(feature = "fp")]
-    pub struct FP;
-
-    #[cfg(feature = "fp")]
-    impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for FP {
+    impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for PinTest {
         const S: TestSelector = TestSelector::Sanity_Pin;
 
         async fn setup(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
             Ok(())
         }
 
-        async fn run(
-            &mut self,
-            peripherals: &mut FPPeripherals<'_, I, P>,
-        ) -> Result<(), ()> {
+        async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
             while peripherals.pin.is_low() {}
             Ok(())
         }

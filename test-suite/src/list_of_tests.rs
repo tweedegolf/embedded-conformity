@@ -9,4 +9,5 @@ pub enum TestSelector {
     Sanity_Pin,
     I2C_SimpleRead,
     I2C_SimpleWrite,
+    I2C_MultiWrite,
 }

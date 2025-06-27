@@ -5,10 +5,12 @@ use embedded_hal::{digital::OutputPin, i2c::I2c};
 use rtt_target::UpChannel;
 
 use crate::{
-    Context, i2c_tests,
+    Context,
+    i2c_tests::{self, simple_read::I2C_SimpleRead, simple_write::I2C_SimpleWrite},
     list_of_tests::TestSelector,
     protocol::{DUTToHost, HostToDUT, HostToDUTCommand, send_to_host},
-    read_cobs, sanity_tests,
+    read_cobs,
+    sanity_tests::{self, pin_test::PinTest},
 };
 
 pub fn run_dut_tests<P: OutputPin, I2C: I2c>(mut ctx: Context, mut session: DutPeripherals<I2C, P>)
@@ -21,31 +23,26 @@ where
 
         match data.command {
             HostToDUTCommand::Init => {}
-            HostToDUTCommand::Run(t @ TestSelector::Sanity_Pin) => {
-                debug!("running test {}", t);
-                let test = sanity_tests::pin_test::Dut;
-                run_dut_test(t, test, &mut ctx.channels.up, &mut session);
+            HostToDUTCommand::Run(TestSelector::Sanity_Pin) => {
+                run_dut_test(PinTest, &mut ctx.channels.up, &mut session);
             }
-            HostToDUTCommand::Run(t @ TestSelector::I2C_SimpleRead) => {
-                debug!("running test {:?}", t);
-                let test = i2c_tests::simple_read::SimpleRead;
-                run_dut_test(t, test, &mut ctx.channels.up, &mut session);
+            HostToDUTCommand::Run(TestSelector::I2C_SimpleRead) => {
+                run_dut_test(I2C_SimpleRead, &mut ctx.channels.up, &mut session);
             }
-            HostToDUTCommand::Run(t @ TestSelector::I2C_SimpleWrite) => {
-                debug!("running test {:?}", t);
-                let test = i2c_tests::simple_write::Dut;
-                run_dut_test(t, test, &mut ctx.channels.up, &mut session);
+            HostToDUTCommand::Run(TestSelector::I2C_SimpleWrite) => {
+                run_dut_test(I2C_SimpleWrite, &mut ctx.channels.up, &mut session);
             }
+            HostToDUTCommand::Run(TestSelector::I2C_MultiWrite) => unimplemented!(),
         }
     });
 }
 
-fn run_dut_test<I2C: I2c, P: OutputPin>(
-    t: TestSelector,
-    mut test: impl DutTest<I2C, P>,
+fn run_dut_test<I2C: I2c, P: OutputPin, T: DutTest<I2C, P>>(
+    mut test: T,
     up: &mut UpChannel,
     session: &mut DutPeripherals<I2C, P>,
 ) {
+    let t = <T as DutTest<_, _>>::S;
     if let Err(e) = test.setup(session) {
         error!("Encountered error during setup of test {}: {:?}", t, &e);
         send_to_host(DUTToHost::TestFailure(t), up);

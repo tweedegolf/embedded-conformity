@@ -36,34 +36,34 @@ addr_ack:
   wait 1 pin 1 ; Wait for SCL high
   wait 0 pin 1 [7]  ; Wait for SCL low
 
-  ; use x to determine Write (0) or Read (1)
+pre_byte:
   set y, 7; Init counter to count down write or read
 
-  jmp !x read side 0
+  ; use x to determine Write (0) or Read (1)
+  jmp !x byte side 0
   nop side 1
-read:
+byte:
   out pins, 1; shift one bit out from OSR to pins (pin 0, SDA)
   wait 1 pin 1 ; wait for SCL
   in pins, 1 ; Read SDA
   wait 0 pin 1 [7] ; wait for SCL
-  jmp y-- read
+  jmp y-- byte
 
   jmp !x write_ack side 1
   jmp done side 0
 write_ack:
+  ; I Could use addr_ack iff im expecting more bytes after this
   set pins 0 
 
+  ; TODO: verify Ack/Nack on read (?)
   wait 1 pin 1
-  wait 0 pin 1 
-
-
-  ; TODO: act on Ack/Nack (?)
+  wait 0 pin 1 side 0
 
 done:
   ; wait 1 pin 1 ; <-- Feels wrong but makes the waveform happy
   ; stop
   ; wait 1 pin 1
-  ; wait 1 pin 0
+  ; wait 1 pin 0 line wh
 
   irq wait 3 side 0
 

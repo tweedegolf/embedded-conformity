@@ -19,12 +19,12 @@ use {
     },
 };
 
-const PAYLOAD: &[u8; 1] = &[13];
+const PAYLOAD: u8 = 13;
 
-/// The Device Under Test Test
-pub struct Dut;
+pub struct I2C_SimpleWrite;
+pub struct I2C_SimpleWrite_PIO;
 
-impl<P: OutputPin, T: I2c> DutTest<T, P> for Dut
+impl<P: OutputPin, T: I2c> DutTest<T, P> for I2C_SimpleWrite
 where
     T::Error: defmt::Format,
 {
@@ -38,7 +38,7 @@ where
         trace!("Starting i2c write");
         session
             .i2c
-            .write(I2C_DEFAULT_ADDRESS, PAYLOAD)
+            .write(I2C_DEFAULT_ADDRESS, &[PAYLOAD])
             .map_err(|e| {
                 error!("{}", e);
             })?;
@@ -52,12 +52,8 @@ where
     }
 }
 
-/// The Fake Peripheral/Tester part of the test
 #[cfg(feature = "fp")]
-pub struct FP;
-
-#[cfg(feature = "fp")]
-impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for FP {
+impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleWrite {
     const S: TestSelector = TestSelector::I2C_SimpleWrite;
 
     async fn setup(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
@@ -66,7 +62,7 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for FP {
 
     async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
         I2cSlaveTester::new(&mut peripherals.i2c)
-            .expect_write(PAYLOAD)
+            .expect_write(&[PAYLOAD])
             .run()
             .await
             .map_err(|e| {
@@ -80,8 +76,6 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for FP {
         Ok(())
     }
 }
-
-pub struct I2C_SimpleWrite_PIO;
 
 #[cfg(feature = "fp")]
 impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleWrite_PIO {
@@ -114,11 +108,11 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleWrite_PIO {
         let mode = data & 1 == 1; // true is read, false is write
 
         assert!(!mode); // True == read
-        assert_eq!(address, 0x55);
+        assert_eq!(address, I2C_DEFAULT_ADDRESS);
 
         let write = pio.sm0.rx().wait_pull().await;
 
-        assert_eq!(13, write.to_be_bytes()[3]);
+        assert_eq!(PAYLOAD, write.to_be_bytes()[3]);
 
         pio.irq3.wait().await;
 

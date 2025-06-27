@@ -14,7 +14,9 @@ use rand::RngCore;
 
 use crate::list_of_tests::TestSelector;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+// TODO: Communicate the cause of the error to the runner
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
 pub struct HostToDUT {
     pub id: u32,
     pub command: HostToDUTCommand,
@@ -31,7 +33,7 @@ impl HostToDUT {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
 pub enum HostToDUTCommand {
     /// Run a specific test
     Init,
@@ -43,10 +45,9 @@ pub enum DUTToHost {
     Ack(u32),
     TestFailure(TestSelector),
     Success(TestSelector),
-    Finished,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
 pub struct HostToFP {
     pub id: u32,
     pub command: HostToFPCommand,
@@ -63,7 +64,7 @@ impl HostToFP {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
 pub enum HostToFPCommand {
     Init,
     Run(TestSelector),

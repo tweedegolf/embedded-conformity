@@ -12,14 +12,16 @@ use crate::{
     list_of_tests::TestSelector,
 };
 
-use embedded_hal::digital::OutputPin;
-use embedded_hal::i2c::I2c;
-
 pub const I2C_DEFAULT_ADDRESS: u8 = 0x55;
 
 pub mod pio_tests;
+
+// TODO: Make these tests generic over the FP side of things
+// - Either use the onboard I2C Slave Peripheral
+// - Or use PIO
 pub mod simple_read;
 pub mod simple_write;
+pub mod multi_write;
 
 #[cfg(feature = "fp")]
 pub mod tester;

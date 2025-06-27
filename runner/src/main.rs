@@ -16,6 +16,7 @@ use probe_rs::probe::DebugProbeInfo;
 use probe_rs::probe::list::Lister;
 use probe_rs::{Permissions, Session};
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info};
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 mod coordinator;
@@ -37,13 +38,13 @@ enum Commands {
     ExampleConfig,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct Config {
     device_under_test: DeviceInfo,
     fake_peripheral: DeviceInfo,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct DeviceInfo {
     firmware_path: PathBuf,
     serial: String,
@@ -110,6 +111,8 @@ fn run_test(cfg: Config) {
         .find(|el| el.serial_number.as_deref() == Some(&cfg.device_under_test.serial))
         .expect("Could not find dut with uuid");
 
+    debug!("Devices found");
+
     let mut fake_path = cfg.fake_peripheral.firmware_path.clone();
     if !fake_path.ends_with("Cargo.toml") {
         fake_path.push("Cargo.toml");
@@ -122,16 +125,22 @@ fn run_test(cfg: Config) {
 
     let fake_elf = build_firmware(fake_path.as_path());
     let dut_elf = build_firmware(dut_path.as_path());
+    debug!("Finished building fimrware");
+
 
     flash_firmware(
         fake_peripheral,
         &cfg.fake_peripheral.chip,
         fake_elf.as_path(),
     );
+    debug!("Flashed FP");
     flash_firmware(dut, &cfg.device_under_test.chip, dut_elf.as_path());
+    debug!("Flashed DUT");
 
     let dut_session = start_device(dut, &cfg.device_under_test.chip);
+    debug!("Started DUT");
     let fp_session = start_device(fake_peripheral, &cfg.fake_peripheral.chip);
+    debug!("Started FP");
 
     Coordinator::new(cfg, dut_session, dut_elf, fp_session, fake_elf).run();
 }

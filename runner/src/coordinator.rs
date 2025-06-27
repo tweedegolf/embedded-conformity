@@ -163,35 +163,19 @@ impl Coordinator {
             self.dut_elf.clone(),
         );
 
-        // FP: Host to FP thread
+        // Create threads for bidirectional communication between HOST <-> {fp, dut}
         let to_fp = Self::create_sender(self.fp_session.clone(), fp_down);
-
-        // DUT: Host to DUT thread
         let to_dut = Self::create_sender(self.dut_session.clone(), dut_down);
-
-        // FP: FP to Host Thread
         let from_fp = Self::create_receiver(self.fp_session.clone(), fp_up);
-
-        // DUT: DUT to Host Thread
         let from_dut = Self::create_receiver(self.dut_session.clone(), dut_up);
 
-        info!("Going to send test message");
+        let init_fp = HostToFP::new(HostToFPCommand::Init);
+        to_fp.send(init_fp).unwrap();
+        let init_dut = HostToDUT::new(HostToDUTCommand::Init);
+        to_dut.send(init_dut).unwrap();
 
-        to_fp
-            .send(HostToFP {
-                id: 13,
-                command: HostToFPCommand::Init,
-            })
-            .unwrap();
-        to_dut
-            .send(HostToDUT {
-                id: 31,
-                command: HostToDUTCommand::Init,
-            })
-            .unwrap();
-
-        assert_eq!(FPToHost::Ack(13), from_fp.recv().unwrap());
-        assert_eq!(DUTToHost::Ack(31), from_dut.recv().unwrap());
+        assert_eq!(FPToHost::Ack(init_fp.id), from_fp.recv().unwrap());
+        assert_eq!(DUTToHost::Ack(init_dut.id), from_dut.recv().unwrap());
 
         let mut fp_acks = HashMap::new();
         let mut dut_acks = HashMap::new();
@@ -231,7 +215,7 @@ impl Coordinator {
                 }
 
                 if now.elapsed() > TIMEOUT {
-                    error!("Timeout, test took more than {}ms", TIMEOUT.as_millis());
+                    error!("Timeout: {t:?} took more than {}ms", TIMEOUT.as_millis());
                     exit(1);
                 }
 
@@ -240,7 +224,7 @@ impl Coordinator {
                         FPToHost::Ack(id) => {
                             assert!(fp_acks.remove(&id).is_some());
                         }
-                        FPToHost::TestFailure(a) => error!("FRM FP: Test {a:?} failed"),
+                        FPToHost::TestFailure(a) => error!("FP: Test {a:?} failed"),
                         FPToHost::Success(a) => {
                             assert_eq!(t, a);
                             debug!("fp success {t:?}");
@@ -256,16 +240,15 @@ impl Coordinator {
                         DUTToHost::Ack(id) => {
                             assert!(dut_acks.remove(&id).is_some());
                         }
-                        DUTToHost::TestFailure(a) => error!("FRM DT: Test {a:?} failed"),
+                        DUTToHost::TestFailure(a) => error!("DT: Test {a:?} failed"),
                         DUTToHost::Success(a) => {
                             assert_eq!(t, a);
                             debug!("dut success {t:?}");
                             dut_success = true;
                         }
-                        DUTToHost::Finished => todo!(),
                     },
                     Err(TryRecvError::Empty) => {}
-                    Err(TryRecvError::Disconnected) => panic!("FP Disconnected"),
+                    Err(TryRecvError::Disconnected) => panic!("DUT Disconnected"),
                 }
 
                 if fp_success && dut_success {
