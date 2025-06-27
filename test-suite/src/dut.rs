@@ -21,17 +21,17 @@ where
 
         match data.command {
             HostToDUTCommand::Init => {}
-            HostToDUTCommand::Run(t@TestSelector::Sanity_Pin) => {
+            HostToDUTCommand::Run(t @ TestSelector::Sanity_Pin) => {
                 debug!("running test {}", t);
                 let test = sanity_tests::pin_test::Dut;
                 run_dut_test(t, test, &mut ctx.channels.up, &mut session);
             }
-            HostToDUTCommand::Run(t@TestSelector::I2C_SimpleRead) => {
-                debug!("running test {:?}",t);
-                let test = i2c_tests::simple_read::Dut;
+            HostToDUTCommand::Run(t @ TestSelector::I2C_SimpleRead) => {
+                debug!("running test {:?}", t);
+                let test = i2c_tests::simple_read::SimpleRead;
                 run_dut_test(t, test, &mut ctx.channels.up, &mut session);
             }
-            HostToDUTCommand::Run(t@TestSelector::I2C_SimpleWrite) => {
+            HostToDUTCommand::Run(t @ TestSelector::I2C_SimpleWrite) => {
                 debug!("running test {:?}", t);
                 let test = i2c_tests::simple_write::Dut;
                 run_dut_test(t, test, &mut ctx.channels.up, &mut session);

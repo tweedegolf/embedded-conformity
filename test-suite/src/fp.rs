@@ -15,7 +15,11 @@ use postcard::accumulator::{CobsAccumulator, FeedResult};
 use rtt_target::UpChannel;
 
 use crate::{
-    i2c_tests::{i2c_pio::{I2C_SimpleRead_PIO, I2C_SimpleWrite_PIO}}, list_of_tests::TestSelector, protocol::{send_to_host, FPToHost, HostToFP, HostToFPCommand}, sanity_tests, Context, TestError
+    Context, TestError,
+    i2c_tests::{simple_read::I2C_SimpleRead_PIO, simple_write::I2C_SimpleWrite_PIO},
+    list_of_tests::TestSelector,
+    protocol::{FPToHost, HostToFP, HostToFPCommand, send_to_host},
+    sanity_tests,
 };
 
 pub struct FPPeripherals<'a, I: i2c::Instance, P: pio::Instance> {
@@ -33,7 +37,7 @@ pub struct PioPeripheral<'a, P: pio::Instance> {
 
 /// The FPTest trait defines the interface for the fake peripheral side of the tests
 pub trait FPTest<I: i2c::Instance, P: pio::Instance> {
-    /// Specifies which test this is, 
+    /// Specifies which test this is,
     const S: TestSelector;
 
     async fn setup(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError>;
@@ -64,7 +68,7 @@ async fn run_fp_test<I: i2c::Instance, P: pio::Instance>(
 
     send_to_host(FPToHost::Success(t), up);
 
-    // we crash as we can not guarantee to correctness of the system 
+    // we crash as we can not guarantee to correctness of the system
     unwrap!(test.teardown(peripherals).await)
 }
 
@@ -94,18 +98,30 @@ pub async fn run_fp_tests<I: i2c::Instance, P: pio::Instance>(
                     send_to_host(FPToHost::Ack(data.id), &mut ctx.channels.up);
                     match data.command {
                         HostToFPCommand::Init => {}
-                        HostToFPCommand::Run(t@TestSelector::Sanity_Pin) => {
+                        HostToFPCommand::Run(t @ TestSelector::Sanity_Pin) => {
                             debug!("running test {}", t);
                             let test = sanity_tests::pin_test::FP;
                             run_fp_test(t, test, &mut ctx.channels.up, &mut peripherals).await;
                         }
-                        HostToFPCommand::Run(t@TestSelector::I2C_SimpleRead) => {
+                        HostToFPCommand::Run(t @ TestSelector::I2C_SimpleRead) => {
                             debug!("running test {}", t);
-                            run_fp_test(t, I2C_SimpleRead_PIO, &mut ctx.channels.up, &mut peripherals).await;
+                            run_fp_test(
+                                t,
+                                I2C_SimpleRead_PIO,
+                                &mut ctx.channels.up,
+                                &mut peripherals,
+                            )
+                            .await;
                         }
-                        HostToFPCommand::Run(t@TestSelector::I2C_SimpleWrite) => {
+                        HostToFPCommand::Run(t @ TestSelector::I2C_SimpleWrite) => {
                             debug!("running test {}", t);
-                            run_fp_test(t, I2C_SimpleWrite_PIO, &mut ctx.channels.up, &mut peripherals).await;
+                            run_fp_test(
+                                t,
+                                I2C_SimpleWrite_PIO,
+                                &mut ctx.channels.up,
+                                &mut peripherals,
+                            )
+                            .await;
                         }
                     }
                     remaining

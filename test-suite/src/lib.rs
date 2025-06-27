@@ -5,10 +5,10 @@ use defmt::Format;
 use postcard::accumulator::{CobsAccumulator, FeedResult};
 use rtt_target::{ChannelMode, DownChannel, UpChannel, rtt_init, set_defmt_channel};
 
-pub use postcard;
-pub use strum;
 pub use heapless;
+pub use postcard;
 use serde::Deserialize;
+pub use strum;
 
 pub mod i2c_tests;
 pub mod list_of_tests;

@@ -9,7 +9,7 @@ use test_suite::{fp::embassy_rp::{
     i2c_slave::{self, I2cSlave},
     peripherals::{I2C0, PIO0},
     pio::{self, Pio},
-}, heapless::Vec};
+}, heapless::Vec, i2c_tests::I2C_DEFAULT_ADDRESS};
 use panic_probe as _;
 use test_suite::fp::{embassy_rp, run_fp_tests, FPPeripherals, PioPeripheral};
 
@@ -31,7 +31,8 @@ async fn main(_spawner: Spawner) {
 
     let input_one = Input::new(p.PIN_10, embassy_rp::gpio::Pull::None);
 
-    let config = i2c_slave::Config::default();
+    let mut config = i2c_slave::Config::default();
+    config.addr = I2C_DEFAULT_ADDRESS as u16;
     // scl, sda
     let slave = I2cSlave::new(p.I2C0, p.PIN_1, p.PIN_0, I2cIrq, config);
 

@@ -1,0 +1,143 @@
+#![allow(non_camel_case_types)]
+use embedded_hal::{digital::OutputPin, i2c::I2c};
+
+use crate::{
+    TestError,
+    dut::{DutPeripherals, DutTest},
+    i2c_tests::I2C_DEFAULT_ADDRESS,
+    list_of_tests::TestSelector,
+};
+use defmt::{assert, assert_eq, debug, error, expect, info, intern, panic, trace, unwrap};
+
+#[cfg(feature = "fp")]
+use {
+    crate::fp::{FPPeripherals, FPTest, PioPeripheral},
+    crate::i2c_tests::tester::I2cSlaveTester,
+    embassy_rp::{
+        gpio::Pull,
+        i2c,
+        pio::{self, Config, Direction, ShiftConfig, ShiftDirection, program::pio_file},
+    },
+};
+
+const PAYLOAD: &[u8; 1] = &[13];
+
+/// The Device Under Test Test
+pub struct Dut;
+
+impl<P: OutputPin, T: I2c> DutTest<T, P> for Dut
+where
+    T::Error: defmt::Format,
+{
+    const S: TestSelector = TestSelector::I2C_SimpleWrite;
+
+    fn setup(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
+        Ok(())
+    }
+
+    fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
+        trace!("Starting i2c write");
+        session
+            .i2c
+            .write(I2C_DEFAULT_ADDRESS, PAYLOAD)
+            .map_err(|e| {
+                error!("{}", e);
+                TestError::RunError
+            })?;
+        trace!("Finished i2c write");
+
+        Ok(())
+    }
+
+    fn teardown(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
+        Ok(())
+    }
+}
+
+/// The Fake Peripheral/Tester part of the test
+#[cfg(feature = "fp")]
+pub struct FP;
+
+#[cfg(feature = "fp")]
+impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for FP {
+    const S: TestSelector = TestSelector::I2C_SimpleWrite;
+
+    async fn setup(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
+        Ok(())
+    }
+
+    async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
+        I2cSlaveTester::new(&mut peripherals.i2c)
+            .expect_write(PAYLOAD)
+            .run()
+            .await
+            .map_err(|e| {
+                error!("{}", e);
+                TestError::RunError
+            })?;
+        Ok(())
+    }
+
+    async fn teardown(
+        &mut self,
+        peripherals: &mut FPPeripherals<'_, I, P>,
+    ) -> Result<(), TestError> {
+        peripherals.i2c.reset();
+        Ok(())
+    }
+}
+
+pub struct I2C_SimpleWrite_PIO;
+
+#[cfg(feature = "fp")]
+impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleWrite_PIO {
+    const S: TestSelector = TestSelector::I2C_SimpleWrite;
+
+    async fn setup(
+        &mut self,
+        peripherals: &mut crate::fp::FPPeripherals<'_, I, P>,
+    ) -> Result<(), crate::TestError> {
+        use crate::i2c_tests::pio_tests::simple_read_write::simple_init_pio;
+
+        simple_init_pio(&mut peripherals.pio);
+
+        let pio = &mut peripherals.pio.pio;
+        pio.sm0.tx().push(0u32.to_be()); // The Reply, 0 -> None
+
+        Ok(())
+    }
+
+    async fn run(
+        &mut self,
+        peripherals: &mut crate::fp::FPPeripherals<'_, I, P>,
+    ) -> Result<(), crate::TestError> {
+        let pio = &mut peripherals.pio.pio;
+
+        pio.sm0.set_enable(true); // Start the state machine
+
+        let data = pio.sm0.rx().wait_pull().await.to_be_bytes()[3];
+        let address = data >> 1;
+        let mode = data & 1 == 1; // true is read, false is write
+
+        assert!(!mode); // True == read
+        assert_eq!(address, 0x55);
+
+        let write = pio.sm0.rx().wait_pull().await;
+
+        assert_eq!(13, write.to_be_bytes()[3]);
+
+        pio.irq3.wait().await;
+
+        Ok(())
+    }
+
+    async fn teardown(
+        &mut self,
+        peripherals: &mut crate::fp::FPPeripherals<'_, I, P>,
+    ) -> Result<(), crate::TestError> {
+        use crate::i2c_tests::pio_tests::simple_read_write::simple_reset_pio;
+
+        simple_reset_pio(&mut peripherals.pio);
+        Ok(())
+    }
+}

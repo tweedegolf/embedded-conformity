@@ -63,7 +63,10 @@ pub mod pin_test {
             Ok(())
         }
 
-        async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
+        async fn run(
+            &mut self,
+            peripherals: &mut FPPeripherals<'_, I, P>,
+        ) -> Result<(), TestError> {
             while peripherals.pin.is_low() {}
             Ok(())
         }

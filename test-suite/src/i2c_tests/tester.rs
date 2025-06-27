@@ -129,4 +129,3 @@ impl<'a, 'b, I: Instance> I2cSlaveTester<'a, 'b, I> {
         Ok(())
     }
 }
-
