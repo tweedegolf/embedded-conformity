@@ -8,7 +8,6 @@ use {
 };
 
 use crate::{
-    TestError,
     dut::{DutPeripherals, DutTest},
     list_of_tests::TestSelector,
 };

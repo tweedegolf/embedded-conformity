@@ -5,7 +5,7 @@ use embedded_hal::{digital::OutputPin, i2c::I2c};
 use rtt_target::UpChannel;
 
 use crate::{
-    Context, TestError, i2c_tests,
+    Context, i2c_tests,
     list_of_tests::TestSelector,
     protocol::{DUTToHost, HostToDUT, HostToDUTCommand, send_to_host},
     read_cobs, sanity_tests,
@@ -74,7 +74,7 @@ pub struct DutPeripherals<I2C: I2c, P: OutputPin> {
 pub trait DutTest<I2C: I2c, P: OutputPin> {
     const S: TestSelector;
 
-    fn setup(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError>;
-    fn run(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError>;
-    fn teardown(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError>;
+    fn setup(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), ()>;
+    fn run(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), ()>;
+    fn teardown(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), ()>;
 }

@@ -2,7 +2,6 @@
 use embedded_hal::{digital::OutputPin, i2c::I2c};
 
 use crate::{
-    TestError,
     dut::{DutPeripherals, DutTest},
     i2c_tests::I2C_DEFAULT_ADDRESS,
     list_of_tests::TestSelector,
@@ -32,11 +31,11 @@ where
 {
     const S: TestSelector = TestSelector::I2C_SimpleRead;
 
-    fn setup(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
+    fn setup(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), ()> {
         Ok(())
     }
 
-    fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
+    fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), ()> {
         let mut buf = [0; PAYLOAD.len()];
 
         session
@@ -44,7 +43,6 @@ where
             .read(I2C_DEFAULT_ADDRESS, &mut buf)
             .map_err(|e| {
                 error!("{}", e);
-                TestError::RunError
             })?;
 
         if &buf != PAYLOAD {
@@ -52,13 +50,12 @@ where
                 "i2c: payload mismatched what was read, got: {}, expected: {}",
                 &buf, PAYLOAD
             );
-            return Err(TestError::RunError);
         }
 
         Ok(())
     }
 
-    fn teardown(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
+    fn teardown(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), ()> {
         Ok(())
     }
 }
@@ -67,26 +64,22 @@ where
 impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for SimpleRead {
     const S: TestSelector = TestSelector::I2C_SimpleRead;
 
-    async fn setup(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
+    async fn setup(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
         Ok(())
     }
 
-    async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
+    async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
         I2cSlaveTester::new(&mut peripherals.i2c)
             .expect_read(PAYLOAD)
             .run()
             .await
             .map_err(|e| {
                 error!("{}", e);
-                TestError::RunError
             })?;
         Ok(())
     }
 
-    async fn teardown(
-        &mut self,
-        peripherals: &mut FPPeripherals<'_, I, P>,
-    ) -> Result<(), TestError> {
+    async fn teardown(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
         peripherals.i2c.reset();
         Ok(())
     }
@@ -102,7 +95,7 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead_PIO {
     async fn setup(
         &mut self,
         peripherals: &mut crate::fp::FPPeripherals<'_, I, P>,
-    ) -> Result<(), crate::TestError> {
+    ) -> Result<(), ()> {
         simple_init_pio(&mut peripherals.pio);
 
         peripherals.pio.pio.sm0.tx().push(13u32.to_be()); // The Reply
@@ -113,7 +106,7 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead_PIO {
     async fn run(
         &mut self,
         peripherals: &mut crate::fp::FPPeripherals<'_, I, P>,
-    ) -> Result<(), crate::TestError> {
+    ) -> Result<(), ()> {
         let pio = &mut peripherals.pio.pio;
 
         pio.sm0.set_enable(true); // Start the state machine
@@ -133,7 +126,7 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead_PIO {
     async fn teardown(
         &mut self,
         peripherals: &mut crate::fp::FPPeripherals<'_, I, P>,
-    ) -> Result<(), crate::TestError> {
+    ) -> Result<(), ()> {
         simple_reset_pio(&mut peripherals.pio);
         Ok(())
     }

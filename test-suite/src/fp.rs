@@ -15,7 +15,7 @@ use postcard::accumulator::{CobsAccumulator, FeedResult};
 use rtt_target::UpChannel;
 
 use crate::{
-    Context, TestError,
+    Context,
     i2c_tests::{simple_read::I2C_SimpleRead_PIO, simple_write::I2C_SimpleWrite_PIO},
     list_of_tests::TestSelector,
     protocol::{FPToHost, HostToFP, HostToFPCommand, send_to_host},
@@ -40,12 +40,12 @@ pub trait FPTest<I: i2c::Instance, P: pio::Instance> {
     /// Specifies which test this is,
     const S: TestSelector;
 
-    async fn setup(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError>;
-    async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError>;
+    async fn setup(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), ()>;
+    async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), ()>;
     async fn teardown(
         &mut self,
         peripherals: &mut FPPeripherals<'_, I, P>,
-    ) -> Result<(), TestError>;
+    ) -> Result<(), ()>;
 }
 
 async fn run_fp_test<I: i2c::Instance, P: pio::Instance>(

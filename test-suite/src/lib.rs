@@ -88,9 +88,3 @@ fn read_cobs<T: for<'de> Deserialize<'de>>(down: &mut DownChannel, mut fun: impl
     }
 }
 
-#[derive(Format)]
-pub enum TestError {
-    SetupError,
-    RunError,
-    TeardownError,
-}

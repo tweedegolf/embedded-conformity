@@ -16,8 +16,6 @@ pub mod pin_test {
     use defmt::error;
     use embedded_hal::i2c::I2c;
 
-    use crate::TestError;
-
     use super::*;
 
     /// The Device Under Test Test
@@ -29,24 +27,21 @@ pub mod pin_test {
     {
         const S: TestSelector = TestSelector::Sanity_Pin;
 
-        fn setup(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError> {
+        fn setup(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), ()> {
             session.pin.set_low().map_err(|e| {
                 error!("{}", e);
-                TestError::SetupError
             })
         }
 
-        fn run(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError> {
+        fn run(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), ()> {
             session.pin.set_high().map_err(|e| {
                 error!("{}", e);
-                TestError::RunError
             })
         }
 
-        fn teardown(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError> {
+        fn teardown(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), ()> {
             session.pin.set_low().map_err(|e| {
                 error!("{}", e);
-                TestError::TeardownError
             })
         }
     }
@@ -59,19 +54,19 @@ pub mod pin_test {
     impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for FP {
         const S: TestSelector = TestSelector::Sanity_Pin;
 
-        async fn setup(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
+        async fn setup(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
             Ok(())
         }
 
         async fn run(
             &mut self,
             peripherals: &mut FPPeripherals<'_, I, P>,
-        ) -> Result<(), TestError> {
+        ) -> Result<(), ()> {
             while peripherals.pin.is_low() {}
             Ok(())
         }
 
-        async fn teardown(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), TestError> {
+        async fn teardown(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
             Ok(())
         }
     }
