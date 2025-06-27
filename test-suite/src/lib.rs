@@ -7,6 +7,7 @@ use rtt_target::{ChannelMode, DownChannel, UpChannel, rtt_init, set_defmt_channe
 
 pub use postcard;
 pub use strum;
+pub use heapless;
 use serde::Deserialize;
 
 pub mod i2c_tests;

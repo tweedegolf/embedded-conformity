@@ -1,28 +1,21 @@
 #![cfg(feature = "fp")]
+#![allow(non_camel_case_types)]
 
-use defmt::{assert, assert_eq, debug, error, info, intern, panic, trace};
-use embassy_futures::select::{Either4, select4};
+use defmt::{assert, assert_eq, debug, error, info, intern, panic, trace, unwrap, expect};
 use embassy_rp::gpio::Pull;
-use embassy_rp::pio::{Config, Pio, program::pio_file};
-use embassy_rp::pio::{Direction, InstanceMemory, ShiftConfig, ShiftDirection};
+use embassy_rp::pio::{Config, program::pio_file};
+use embassy_rp::pio::{Direction, ShiftConfig, ShiftDirection};
 use embassy_rp::{i2c, pio};
 
-use crate::TestError;
-use crate::fp::FPTest;
+use crate::fp::{FPTest, PioPeripheral};
 use crate::list_of_tests::TestSelector;
 
 pub struct I2C_SimpleRead_PIO;
 
-impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead_PIO {
-    const S: TestSelector = TestSelector::I2C_SimpleRead;
-
-    async fn setup(
-        &mut self,
-        peripherals: &mut crate::fp::FPPeripherals<'_, I, P>,
-    ) -> Result<(), crate::TestError> {
-        let pio = &mut peripherals.pio.pio;
-        let sda = &mut peripherals.pio.sda;
-        let scl = &mut peripherals.pio.scl;
+fn init_pio<P: pio::Instance>(peripheral: &mut PioPeripheral<'_, P>) {
+        let sda = &mut peripheral.sda;
+        let scl = &mut peripheral.scl;
+        let pio = &mut peripheral.pio;
 
         let program = pio_file!("src/i2c_tests/i2c_simple.pio", select_program("i2c_slave"));
         let program = pio.common.load_program(&program.program);
@@ -51,7 +44,20 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead_PIO {
         pio.sm0.set_config(&config);
         pio.sm0.set_pin_dirs(Direction::In, &[sda, scl]);
 
-        pio.sm0.tx().push(13u32.to_be()); // The Reply
+
+        unwrap!(peripheral.programs.push(program).ok());
+}
+
+impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead_PIO {
+    const S: TestSelector = TestSelector::I2C_SimpleRead;
+
+    async fn setup(
+        &mut self,
+        peripherals: &mut crate::fp::FPPeripherals<'_, I, P>,
+    ) -> Result<(), crate::TestError> {
+        init_pio(&mut peripherals.pio);
+
+        peripherals.pio.pio.sm0.tx().push(13u32.to_be()); // The Reply
 
         Ok(())
     }
@@ -80,10 +86,17 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead_PIO {
         &mut self,
         peripherals: &mut crate::fp::FPPeripherals<'_, I, P>,
     ) -> Result<(), crate::TestError> {
-        peripherals.pio.pio.sm0.set_enable(false);
-        peripherals.pio.pio.irq_flags.clear_all(0xF);
-        peripherals.pio.pio.sm0.clear_fifos();
-        peripherals.pio.pio.sm0.restart();
+        let program = unwrap!(peripherals.pio.programs.pop());
+
+        let pio = &mut peripherals.pio.pio;
+        pio.sm0.set_enable(false);
+        pio.irq_flags.clear_all(0xF);
+        pio.sm0.clear_fifos();
+
+        // Safety: The PIO is stopped
+        unsafe { pio.common.free_instr(program.used_memory) };
+
+        pio.sm0.restart();
 
         Ok(())
     }
@@ -98,6 +111,8 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleWrite_PIO {
         &mut self,
         peripherals: &mut crate::fp::FPPeripherals<'_, I, P>,
     ) -> Result<(), crate::TestError> {
+        init_pio(&mut peripherals.pio);
+
         let pio = &mut peripherals.pio.pio;
         pio.sm0.tx().push(0u32.to_be()); // The Reply, 0 -> None
 
@@ -125,8 +140,6 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleWrite_PIO {
 
         pio.irq3.wait().await;
 
-        debug!("finished i2c::write");
-
         Ok(())
     }
 
@@ -135,7 +148,11 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleWrite_PIO {
         peripherals: &mut crate::fp::FPPeripherals<'_, I, P>,
     ) -> Result<(), crate::TestError> {
         peripherals.pio.pio.sm0.set_enable(false);
+        peripherals.pio.pio.irq_flags.clear_all(0xF);
         peripherals.pio.pio.sm0.clear_fifos();
+        peripherals.pio.pio.sm0.restart();
+
+
 
         Ok(())
     }

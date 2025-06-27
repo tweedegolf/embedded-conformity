@@ -2,17 +2,16 @@
 #![no_main]
 
 use embassy_executor::Spawner;
-use embassy_rp::{
+use test_suite::{fp::embassy_rp::{
     bind_interrupts,
     gpio::{Input, Level, Output},
     i2c,
     i2c_slave::{self, I2cSlave},
     peripherals::{I2C0, PIO0},
-    pio,
-    pio::Pio,
-};
+    pio::{self, Pio},
+}, heapless::Vec};
 use panic_probe as _;
-use test_suite::fp::{FPPeripherals, PioPeripheral, embassy_rp, run_fp_tests};
+use test_suite::fp::{embassy_rp, run_fp_tests, FPPeripherals, PioPeripheral};
 
 bind_interrupts!(struct I2cIrq {
     I2C0_IRQ => i2c::InterruptHandler<I2C0>;
@@ -45,7 +44,8 @@ async fn main(_spawner: Spawner) {
 
     let peripherals = FPPeripherals {
         i2c: slave,
-        pio: PioPeripheral { pio, scl, sda },
+        pio: PioPeripheral {pio,scl,sda, programs: Vec::new() },
+
         pin: input_one,
     };
 

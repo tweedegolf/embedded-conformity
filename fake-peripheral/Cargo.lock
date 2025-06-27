@@ -576,7 +576,6 @@ dependencies = [
  "cortex-m-rt",
  "defmt 1.0.1",
  "embassy-executor",
- "embassy-rp",
  "embassy-time",
  "panic-probe",
  "rtt-target",

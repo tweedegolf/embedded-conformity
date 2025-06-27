@@ -1,18 +1,21 @@
 #![cfg(feature = "fp")]
 
 use defmt::{debug, error, trace, unwrap};
+
 pub use embassy_rp;
+
 use embassy_rp::{
     gpio::Input,
     i2c,
     i2c_slave::I2cSlave,
-    pio::{self, Pio},
+    pio::{self, InstanceMemory, LoadedProgram, Pio},
 };
+use heapless::Vec;
 use postcard::accumulator::{CobsAccumulator, FeedResult};
 use rtt_target::UpChannel;
 
 use crate::{
-    i2c_tests::{self, i2c_pio::{I2C_SimpleRead_PIO, I2C_SimpleWrite_PIO}}, list_of_tests::TestSelector, protocol::{send_to_host, FPToHost, HostToFP, HostToFPCommand}, sanity_tests, Context, TestError
+    i2c_tests::{i2c_pio::{I2C_SimpleRead_PIO, I2C_SimpleWrite_PIO}}, list_of_tests::TestSelector, protocol::{send_to_host, FPToHost, HostToFP, HostToFPCommand}, sanity_tests, Context, TestError
 };
 
 pub struct FPPeripherals<'a, I: i2c::Instance, P: pio::Instance> {
@@ -25,6 +28,7 @@ pub struct PioPeripheral<'a, P: pio::Instance> {
     pub pio: Pio<'a, P>,
     pub scl: pio::Pin<'a, P>,
     pub sda: pio::Pin<'a, P>,
+    pub programs: Vec<LoadedProgram<'a, P>, 4>,
 }
 
 /// The FPTest trait defines the interface for the fake peripheral side of the tests
