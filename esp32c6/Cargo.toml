@@ -3,10 +3,6 @@ edition = "2021"
 name    = "esp32c6"
 version = "0.1.0"
 
-[[bin]]
-name = "esp32c6"
-path = "./src/bin/main.rs"
-
 [dependencies]
 defmt = "1.0.1"
 esp-bootloader-esp-idf = "0.1.0"
@@ -25,7 +21,8 @@ embassy-time = { version = "0.4.0", features = ["defmt"] }
 esp-hal-embassy = { version = "0.8.1", features = ["defmt", "esp32c6"] }
 panic-rtt-target = { version = "0.2.0", features = ["defmt"] }
 rtt-target = { version = "0.6.1", features = ["defmt"] }
-static_cell = { version = "2.1.0", features = [] }
+
+test-suite = { path = "../test-suite" }
 
 
 [profile.dev]

@@ -1,0 +1,10 @@
+[device_under_test]
+firmware_path = "../esp32c6/"
+serial = "40:4C:CA:42:66:9C"
+chip = "esp32c6"
+
+[fake_peripheral]
+firmware_path = "../fake-peripheral/"
+serial = "E6614103E78B5024"
+chip = "rp2040"
+

@@ -12,8 +12,7 @@ use std::{
 
 use parking_lot::FairMutex;
 use probe_rs::{
-    Session,
-    rtt::{DownChannel, Rtt, UpChannel},
+    rtt::{DownChannel, Rtt, ScanRegion, UpChannel}, Session
 };
 use serde::{Deserialize, Serialize};
 use test_suite::{
@@ -61,6 +60,7 @@ impl Coordinator {
     }
 
     /// Initializes RTT and sets up the defmt logger
+    #[track_caller]
     fn init_channels(
         session: ArcSession,
         target: Target,
@@ -69,6 +69,7 @@ impl Coordinator {
         let mut rtt = {
             let mut guard = session.lock();
             let mut core = guard.core(0).unwrap();
+
 
             match Rtt::attach(&mut core) {
                 Ok(rtt) => rtt,
@@ -80,6 +81,8 @@ impl Coordinator {
                 e @ Err(_) => e.unwrap(),
             }
         };
+
+        debug!("rtt: {:?}", &rtt);
 
         let up_control = rtt.up_channels.pop().unwrap();
         let down_control = rtt.down_channels.pop().unwrap();

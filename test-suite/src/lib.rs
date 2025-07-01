@@ -3,7 +3,7 @@
 
 use defmt::Format;
 use postcard::accumulator::{CobsAccumulator, FeedResult};
-use rtt_target::{ChannelMode, DownChannel, UpChannel, rtt_init, set_defmt_channel};
+use rtt_target::{rtt_init, set_defmt_channel, set_print_channel, ChannelMode, DownChannel, UpChannel};
 
 pub use heapless;
 pub use postcard;
@@ -34,7 +34,7 @@ pub fn init() -> Context {
             0: {
                 size: 1024,
                 mode: ChannelMode::NoBlockSkip, // TODO: probably different mode?
-                name: "Log"
+                name: "defmt"
             }
             1: {
                 size: 1024,

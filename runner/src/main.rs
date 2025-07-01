@@ -11,7 +11,7 @@ use cargo::{GlobalContext, ops};
 use clap::{Parser, Subcommand};
 use coordinator::Coordinator;
 use probe_rs::config::TargetSelector;
-use probe_rs::flashing::{Format, download_file};
+use probe_rs::flashing::{download_file, download_file_with_options, DownloadOptions, Format, IdfOptions};
 use probe_rs::probe::DebugProbeInfo;
 use probe_rs::probe::list::Lister;
 use probe_rs::{Permissions, Session};
@@ -50,11 +50,6 @@ struct DeviceInfo {
     serial: String,
     chip: String,
 }
-
-// 1. Upload firmware to DUT: https://probe.rs/docs/library/quickstart/#downloading-to-flash
-// 2. Upload firmware to client (RP2040)
-// 3. Start Tests, https://docs.rs/rtt-target/latest/rtt_target/#reading
-// 4. Report Status, use defmt and rtt to read back from the chips?
 
 fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
@@ -175,7 +170,18 @@ fn flash_firmware(
 
     let mut session = probe.attach(target, Permissions::default()).unwrap();
 
-    download_file(&mut session, elf, Format::Elf).unwrap();
+    let mut opts =  DownloadOptions::default();
+    opts.preverify = true;
+    
+    let format = if elf.to_string_lossy().contains("esp") {
+        todo!("detect esp better");
+        Format::Idf(IdfOptions::default())
+
+    } else {
+        Format::Elf
+    };
+
+    download_file_with_options(&mut session, elf, format, opts).unwrap();
 }
 
 #[tracing::instrument]
@@ -184,8 +190,6 @@ fn start_device(probe_info: &DebugProbeInfo, chip: &str) -> Session {
     let mut session = probe.attach(chip, Permissions::default()).unwrap();
     {
         let mut core = session.core(0).unwrap();
-
-        // TODO: is there a way to prevent this?
         core.reset().unwrap();
     }
 
