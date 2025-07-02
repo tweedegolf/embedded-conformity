@@ -82,8 +82,6 @@ impl Coordinator {
             }
         };
 
-        debug!("rtt: {:?}", &rtt);
-
         let up_control = rtt.up_channels.pop().unwrap();
         let down_control = rtt.down_channels.pop().unwrap();
         let mut defmt = rtt.up_channels.pop().unwrap();

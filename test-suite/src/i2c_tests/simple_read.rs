@@ -39,12 +39,9 @@ where
     fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), ()> {
         let mut buf = [0; 1];
 
-        session
-            .i2c
-            .read(I2C_DEFAULT_ADDRESS, &mut buf)
-            .map_err(|e| {
-                error!("{}", e);
-            })?;
+        while let Err(err) = session.i2c.read(I2C_DEFAULT_ADDRESS, &mut buf) {
+            error!("{:?}", err);
+        }
 
         if buf[0] != PAYLOAD {
             error!(

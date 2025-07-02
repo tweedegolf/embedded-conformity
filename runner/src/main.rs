@@ -174,9 +174,8 @@ fn flash_firmware(
     opts.preverify = true;
     
     let format = if elf.to_string_lossy().contains("esp") {
-        todo!("detect esp better");
+        // TODO: Detect esp better
         Format::Idf(IdfOptions::default())
-
     } else {
         Format::Elf
     };
