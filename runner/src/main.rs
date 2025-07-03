@@ -11,7 +11,9 @@ use cargo::{GlobalContext, ops};
 use clap::{Parser, Subcommand};
 use coordinator::Coordinator;
 use probe_rs::config::TargetSelector;
-use probe_rs::flashing::{download_file, download_file_with_options, DownloadOptions, Format, IdfOptions};
+use probe_rs::flashing::{
+    DownloadOptions, Format, IdfOptions, download_file, download_file_with_options,
+};
 use probe_rs::probe::DebugProbeInfo;
 use probe_rs::probe::list::Lister;
 use probe_rs::{Permissions, Session};
@@ -122,7 +124,6 @@ fn run_test(cfg: Config) {
     let dut_elf = build_firmware(dut_path.as_path());
     debug!("Finished building fimrware");
 
-
     flash_firmware(
         fake_peripheral,
         &cfg.fake_peripheral.chip,
@@ -170,11 +171,16 @@ fn flash_firmware(
 
     let mut session = probe.attach(target, Permissions::default()).unwrap();
 
-    let mut opts =  DownloadOptions::default();
+    let mut opts = DownloadOptions::default();
     opts.preverify = true;
-    
-    let format = if elf.to_string_lossy().contains("esp") {
-        // TODO: Detect esp better
+
+    let format = if session
+        .target()
+        .default_format
+        .as_ref()
+        .is_some_and(|fmt| fmt == "idf")
+    {
+        debug!("Flashing IDF Bootloader");
         Format::Idf(IdfOptions::default())
     } else {
         Format::Elf

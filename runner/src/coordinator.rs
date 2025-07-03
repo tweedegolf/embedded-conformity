@@ -70,7 +70,6 @@ impl Coordinator {
             let mut guard = session.lock();
             let mut core = guard.core(0).unwrap();
 
-
             match Rtt::attach(&mut core) {
                 Ok(rtt) => rtt,
                 // Workaround for nRF52840_xxAA
