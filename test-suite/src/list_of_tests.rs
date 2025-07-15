@@ -1,10 +1,12 @@
+use core::str::FromStr;
+
 use defmt::Format;
 use serde::{Deserialize, Serialize};
-use strum::EnumIter;
+use strum::{EnumIter, EnumString};
 
 /// When adding a test case an entry MUST also be added here
 #[allow(non_camel_case_types)]
-#[derive(EnumIter, Serialize, Deserialize, Debug, Format, PartialEq, Eq, Clone, Copy)]
+#[derive(EnumIter, Serialize, Deserialize, Debug, Format, PartialEq, Eq, Clone, Copy, EnumString)]
 pub enum TestSelector {
     Sanity_Pin,
     I2C_SimpleRead,

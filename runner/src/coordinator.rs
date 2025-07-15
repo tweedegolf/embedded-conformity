@@ -12,7 +12,8 @@ use std::{
 
 use parking_lot::FairMutex;
 use probe_rs::{
-    rtt::{DownChannel, Rtt, ScanRegion, UpChannel}, Session
+    Session,
+    rtt::{DownChannel, Rtt, ScanRegion, UpChannel},
 };
 use serde::{Deserialize, Serialize};
 use test_suite::{
@@ -151,7 +152,7 @@ impl Coordinator {
         rx
     }
 
-    pub fn run(&self) {
+    pub fn run(self, selector: Option<TestSelector>) {
         let (fp_up, fp_down) = Self::init_channels(
             self.fp_session.clone(),
             Target::FakePeripheral,
@@ -182,7 +183,11 @@ impl Coordinator {
 
         info!("Devices initialized, starting tests...");
 
-        for t in TestSelector::iter() {
+        let tests = selector
+            .map(|t| vec![t])
+            .unwrap_or(TestSelector::iter().collect());
+
+        for t in tests {
             let fp_msg = HostToFP::new(HostToFPCommand::Run(t));
             let dut_msg = HostToDUT::new(HostToDUTCommand::Run(t));
             fp_acks.insert(fp_msg.id, Instant::now());

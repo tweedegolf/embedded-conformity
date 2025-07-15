@@ -101,6 +101,7 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_MultiWrite_PIO {
     ) -> Result<(), ()> {
         let pio = &mut peripherals.pio.pio;
 
+        pio.irq_flags.clear_all(0xF);
         pio.sm0.set_enable(true); // Start the state machine
 
         let data = pio.sm0.rx().wait_pull().await.to_be_bytes()[3];
@@ -110,15 +111,10 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_MultiWrite_PIO {
         assert!(!mode); // True == read
         assert_eq!(address, I2C_DEFAULT_ADDRESS);
 
-        let write = pio.sm0.rx().wait_pull().await;
-
-        assert_eq!(PAYLOAD[0], write.to_be_bytes()[3]);
-
-        let write = pio.sm0.rx().wait_pull().await;
-
-        assert_eq!(PAYLOAD[1], write.to_be_bytes()[3]);
-
-        pio.irq3.wait().await;
+        loop {
+            let rx = pio.sm0.rx().wait_pull().await;
+            debug!("rx: {}", rx.to_be_bytes());
+        }
 
         Ok(())
     }

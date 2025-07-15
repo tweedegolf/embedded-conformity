@@ -7,7 +7,6 @@
 ;    wait 1 pin 0 ; Wait for SDA high (idle state)
 ;    wait 1 pin 1 ; wait for SCL high (idle state)
 
-.wrap_target
   wait 0 pin 1   ; Wait for SCL low (start condition)
 
   ; Read 7 address bits
@@ -36,6 +35,7 @@ addr_ack:
   wait 1 pin 1 ; Wait for SCL high
   wait 0 pin 1 [7]  ; Wait for SCL low
 
+.wrap_target
 pre_byte:
   set y, 7; Init counter to count down write or read
 
@@ -52,19 +52,18 @@ byte:
   jmp !x write_ack side 1
   jmp done side 0
 write_ack:
-  ; I Could use addr_ack iff im expecting more bytes after this
-  set pins 0 
+  ; TODO: I Could use addr_ack iff im expecting more bytes after this
+  set pins 0 side 1 ; Set SDA low, ACK
 
   ; TODO: verify Ack/Nack on read (?)
   wait 1 pin 1
-  wait 0 pin 1 side 0
+  wait 0 pin 1 [7]
 
 done:
-  wait 1 pin 1 ; <-- Feels wrong but makes the waveform happy
+  ; wait 1 pin 1 ; <-- Feels wrong but makes the waveform happy
   ; stop
   ; wait 1 pin 1
   ; wait 1 pin 0 line wh
 
-  irq wait 3 side 0
-
+  irq set 3 side 0 [7]
 .wrap

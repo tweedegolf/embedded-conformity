@@ -16,7 +16,10 @@ use rtt_target::UpChannel;
 
 use crate::{
     Context,
-    i2c_tests::{simple_read::I2C_SimpleRead_PIO, simple_write::I2C_SimpleWrite_PIO},
+    i2c_tests::{
+        multi_write::I2C_MultiWrite_PIO, simple_read::I2C_SimpleRead_PIO,
+        simple_write::I2C_SimpleWrite_PIO,
+    },
     list_of_tests::TestSelector,
     protocol::{FPToHost, HostToFP, HostToFPCommand, send_to_host},
     sanity_tests::{self, pin_test::PinTest},
@@ -110,7 +113,10 @@ pub async fn run_fp_tests<I: i2c::Instance, P: pio::Instance>(
                             )
                             .await;
                         }
-                        HostToFPCommand::Run(TestSelector::I2C_MultiWrite) => unimplemented!(),
+                        HostToFPCommand::Run(TestSelector::I2C_MultiWrite) => {
+                            run_fp_test(I2C_MultiWrite_PIO, &mut ctx.channels.up, &mut peripherals)
+                                .await;
+                        }
                     }
                     remaining
                 }

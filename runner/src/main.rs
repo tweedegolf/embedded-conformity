@@ -18,6 +18,7 @@ use probe_rs::probe::DebugProbeInfo;
 use probe_rs::probe::list::Lister;
 use probe_rs::{Permissions, Session};
 use serde::{Deserialize, Serialize};
+use test_suite::list_of_tests::TestSelector;
 use tracing::{debug, info};
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
@@ -36,6 +37,8 @@ enum Commands {
     Test {
         #[arg(long = "config", short, default_value = "./config.toml")]
         config_file: PathBuf,
+        #[arg(long,short)]
+        selector: Option<TestSelector>
     },
     ExampleConfig,
 }
@@ -67,10 +70,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             let probes = l.list_all();
             println!("{probes:#?}");
         }
-        Commands::Test { config_file } => {
+        Commands::Test { config_file, selector } => {
             let str = fs::read_to_string(config_file).unwrap();
             let cfg: Config = toml::from_str(&str).unwrap();
-            run_test(cfg);
+            run_test(cfg, selector);
         }
         Commands::ExampleConfig => {
             let cfg = Config {
@@ -94,7 +97,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn run_test(cfg: Config) {
+fn run_test(cfg: Config, selector: Option<TestSelector>) {
     let lister = Lister::new();
     let probes = lister.list_all();
 
@@ -138,7 +141,7 @@ fn run_test(cfg: Config) {
     let fp_session = start_device(fake_peripheral, &cfg.fake_peripheral.chip);
     debug!("Started FP");
 
-    Coordinator::new(cfg, dut_session, dut_elf, fp_session, fake_elf).run();
+    Coordinator::new(cfg, dut_session, dut_elf, fp_session, fake_elf).run(selector);
 }
 
 #[tracing::instrument]
