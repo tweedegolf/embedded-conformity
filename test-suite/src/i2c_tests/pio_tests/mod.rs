@@ -17,7 +17,8 @@ use embassy_rp::pio::ShiftDirection;
 pub mod simple_read_write {
     use super::*;
 
-    pub fn simple_init_pio<P: pio::Instance>(peripheral: &mut PioPeripheral<'_, P>) {
+    // TODO: Possibly take parameters of TX/RX Thresholds
+    pub fn simple_init_pio<P: pio::Instance>(peripheral: &mut PioPeripheral<'_, P>, tx_threshold: u8) {
         let sda = &mut peripheral.sda;
         let scl = &mut peripheral.scl;
         let pio = &mut peripheral.pio;
@@ -38,13 +39,17 @@ pub mod simple_read_write {
         config.set_set_pins(&[sda]);
         config.set_jmp_pin(sda);
         config.use_program(&program, &[sda]);
+
+        // Controls the RX FIFO
         config.shift_in = ShiftConfig {
             threshold: 8,
             direction: ShiftDirection::Left,
             auto_fill: true,
         };
+
+        // Controls the TX FIFO
         config.shift_out = ShiftConfig {
-            threshold: 8,
+            threshold: tx_threshold,
             direction: ShiftDirection::Left,
             auto_fill: true,
         };

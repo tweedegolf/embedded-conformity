@@ -92,7 +92,7 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead_PIO {
         &mut self,
         peripherals: &mut crate::fp::FPPeripherals<'_, I, P>,
     ) -> Result<(), ()> {
-        simple_init_pio(&mut peripherals.pio);
+        simple_init_pio(&mut peripherals.pio, 8);
 
         let payload = (PAYLOAD as u32).to_be();
         peripherals.pio.pio.sm0.tx().push(payload); // The Reply

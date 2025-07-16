@@ -60,7 +60,7 @@ write_ack:
   wait 0 pin 1 [7]
 
 done:
-  ; wait 1 pin 1 ; <-- Feels wrong but makes the waveform happy
+  ; wait 1 pin 1
   ; stop
   ; wait 1 pin 1
   ; wait 1 pin 0 line wh

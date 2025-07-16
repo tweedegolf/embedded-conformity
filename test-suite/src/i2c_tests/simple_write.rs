@@ -87,7 +87,7 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleWrite_PIO {
     ) -> Result<(), ()> {
         use crate::i2c_tests::pio_tests::simple_read_write::simple_init_pio;
 
-        simple_init_pio(&mut peripherals.pio);
+        simple_init_pio(&mut peripherals.pio, 8);
 
         let pio = &mut peripherals.pio.pio;
         pio.sm0.tx().push(0u32.to_be()); // The Reply, 0 -> None

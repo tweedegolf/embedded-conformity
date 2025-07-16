@@ -87,7 +87,7 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_MultiWrite_PIO {
     ) -> Result<(), ()> {
         use crate::i2c_tests::pio_tests::simple_read_write::simple_init_pio;
 
-        simple_init_pio(&mut peripherals.pio);
+        simple_init_pio(&mut peripherals.pio, 32);
 
         let pio = &mut peripherals.pio.pio;
         pio.sm0.tx().push(0u32.to_be()); // The Reply, 0 -> None
@@ -111,9 +111,10 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_MultiWrite_PIO {
         assert!(!mode); // True == read
         assert_eq!(address, I2C_DEFAULT_ADDRESS);
 
-        loop {
-            let rx = pio.sm0.rx().wait_pull().await;
-            debug!("rx: {}", rx.to_be_bytes());
+        for el in PAYLOAD {
+            // pio.sm0.tx().push(0u32);
+            let rx = pio.sm0.rx().wait_pull().await.to_be_bytes()[3];
+            assert_eq!(rx, el);
         }
 
         Ok(())
