@@ -14,7 +14,10 @@
     {
       devShells.${system}.default = pkgs.mkShell {
         buildInputs = with pkgs; [ systemd ];
-        nativeBuildInputs = with pkgs; [ pkg-config ];
+        nativeBuildInputs = with pkgs; [
+          pkg-config
+          probe-rs-tools
+        ];
       };
 
     };

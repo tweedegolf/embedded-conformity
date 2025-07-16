@@ -67,3 +67,4 @@ done:
 
   irq set 3 side 0 [7]
 .wrap
+

@@ -112,7 +112,6 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_MultiWrite_PIO {
         assert_eq!(address, I2C_DEFAULT_ADDRESS);
 
         for el in PAYLOAD {
-            // pio.sm0.tx().push(0u32);
             let rx = pio.sm0.rx().wait_pull().await.to_be_bytes()[3];
             assert_eq!(rx, el);
         }

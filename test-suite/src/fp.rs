@@ -17,8 +17,9 @@ use rtt_target::UpChannel;
 use crate::{
     Context,
     i2c_tests::{
-        multi_write::I2C_MultiWrite_PIO, simple_read::I2C_SimpleRead_PIO,
-        simple_write::I2C_SimpleWrite_PIO,
+        multi_write::{I2C_MultiWrite, I2C_MultiWrite_PIO},
+        simple_read::{I2C_SimpleRead, I2C_SimpleRead_PIO},
+        simple_write::{I2C_SimpleWrite, I2C_SimpleWrite_PIO},
     },
     list_of_tests::TestSelector,
     protocol::{FPToHost, HostToFP, HostToFPCommand, send_to_host},
