@@ -6,8 +6,7 @@ use rtt_target::UpChannel;
 
 use crate::{
     i2c_tests::{
-        self, multi_write::{I2C_MultiWrite, I2C_MultiWrite_PIO}, simple_read::I2C_SimpleRead,
-        simple_write::I2C_SimpleWrite,
+        self, address_nak::I2C_AdressNAK, multi_write::{I2C_MultiWrite, I2C_MultiWrite_PIO}, simple_read::I2C_SimpleRead, simple_write::I2C_SimpleWrite
     }, list_of_tests::TestSelector, protocol::{send_to_host, DUTToHost, HostToDUT, HostToDUTCommand}, read_cobs, sanity_tests::{self, pin_test::PinTest}, Context
 };
 
@@ -31,7 +30,10 @@ where
                 run_dut_test(I2C_SimpleWrite, &mut ctx.channels.up, &mut session);
             }
             HostToDUTCommand::Run(TestSelector::I2C_MultiWrite) => {
-                run_dut_test(I2C_MultiWrite, &mut ctx.channels.up, &mut session)
+                run_dut_test(I2C_MultiWrite, &mut ctx.channels.up, &mut session);
+            }
+            HostToDUTCommand::Run(TestSelector::I2C_AdressNAK) => {
+                run_dut_test(I2C_AdressNAK, &mut ctx.channels.up, &mut session);
             }
         }
     });

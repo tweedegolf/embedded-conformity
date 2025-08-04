@@ -3,7 +3,10 @@
 
 use embassy_rp::{
     gpio::Pull,
-    pio::{self, program::pio_file},
+    pio::{
+        self,
+        program::{Program, pio_file},
+    },
 };
 
 use defmt::unwrap;
@@ -14,31 +17,76 @@ use embassy_rp::pio::Direction;
 use embassy_rp::pio::ShiftConfig;
 use embassy_rp::pio::ShiftDirection;
 
+fn init_pio<'a, const SIZE: usize, P: pio::Instance>(
+    peripheral: &mut PioPeripheral<'a, P>,
+    program: &Program<SIZE>,
+    mut cfg: pio::Config<'a, P>,
+) {
+    let sda = &mut peripheral.sda;
+    let scl = &mut peripheral.scl;
+    let pio = &mut peripheral.pio;
+
+    let program = pio.common.load_program(program);
+
+    sda.set_pull(Pull::Up);
+    scl.set_pull(Pull::Up);
+
+    cfg.set_in_pins(&[sda, scl]);
+    cfg.set_out_pins(&[sda]);
+    cfg.set_set_pins(&[sda]);
+    cfg.set_jmp_pin(sda);
+    cfg.use_program(&program, &[sda]);
+
+    pio.sm0.set_config(&cfg);
+
+    pio.sm0.set_pin_dirs(Direction::In, &[sda, scl]);
+
+    unwrap!(peripheral.programs.push(program).ok());
+}
+
+pub mod address_nak {
+    use super::*;
+
+    pub fn init_pio_address_nak<P: pio::Instance>(peripheral: &mut PioPeripheral<'_, P>) {
+        let program = pio_file!(
+            "src/i2c_tests/pio_tests/i2c_address_nak.pio",
+            select_program("address_nak")
+        );
+
+        let mut config = Config::<P>::default();
+
+        // Controls the RX FIFO
+        config.shift_in = ShiftConfig {
+            threshold: 8,
+            direction: ShiftDirection::Left,
+            auto_fill: true,
+        };
+
+        // Controls the TX FIFO
+        config.shift_out = ShiftConfig {
+            threshold: 8,
+            direction: ShiftDirection::Left,
+            auto_fill: true,
+        };
+
+        init_pio(peripheral, &program.program, config);
+    }
+}
+
 pub mod simple_read_write {
     use super::*;
 
     // TODO: Possibly take parameters of TX/RX Thresholds
-    pub fn simple_init_pio<P: pio::Instance>(peripheral: &mut PioPeripheral<'_, P>, tx_threshold: u8) {
-        let sda = &mut peripheral.sda;
-        let scl = &mut peripheral.scl;
-        let pio = &mut peripheral.pio;
-
+    pub fn simple_init_pio<P: pio::Instance>(
+        peripheral: &mut PioPeripheral<'_, P>,
+        tx_threshold: u8,
+    ) {
         let program = pio_file!(
             "src/i2c_tests/pio_tests/i2c_simple.pio",
             select_program("i2c_slave")
         );
-        let program = pio.common.load_program(&program.program);
-
-        // i2c requires pull-up
-        sda.set_pull(Pull::Up);
-        scl.set_pull(Pull::Up);
 
         let mut config = Config::<P>::default();
-        config.set_in_pins(&[sda, scl]);
-        config.set_out_pins(&[sda]);
-        config.set_set_pins(&[sda]);
-        config.set_jmp_pin(sda);
-        config.use_program(&program, &[sda]);
 
         // Controls the RX FIFO
         config.shift_in = ShiftConfig {
@@ -54,10 +102,7 @@ pub mod simple_read_write {
             auto_fill: true,
         };
 
-        pio.sm0.set_config(&config);
-        pio.sm0.set_pin_dirs(Direction::In, &[sda, scl]);
-
-        unwrap!(peripheral.programs.push(program).ok());
+        init_pio(peripheral, &program.program, config);
     }
 
     pub fn simple_reset_pio<P: pio::Instance>(peripheral: &mut PioPeripheral<'_, P>) {
