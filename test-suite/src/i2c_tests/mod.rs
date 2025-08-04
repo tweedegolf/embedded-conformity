@@ -22,6 +22,7 @@ pub mod pio_tests;
 pub mod simple_read;
 pub mod simple_write;
 pub mod multi_write;
+pub mod multi_read;
 
 #[cfg(feature = "fp")]
 pub mod tester;

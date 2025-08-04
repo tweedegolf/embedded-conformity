@@ -5,10 +5,15 @@ use embedded_hal::{digital::OutputPin, i2c::I2c};
 use rtt_target::UpChannel;
 
 use crate::{
+    Context,
     i2c_tests::{
-        self, multi_write::{I2C_MultiWrite, I2C_MultiWrite_PIO}, simple_read::I2C_SimpleRead,
+        self, multi_read::I2C_MultiRead, multi_write::I2C_MultiWrite, simple_read::I2C_SimpleRead,
         simple_write::I2C_SimpleWrite,
-    }, list_of_tests::TestSelector, protocol::{send_to_host, DUTToHost, HostToDUT, HostToDUTCommand}, read_cobs, sanity_tests::{self, pin_test::PinTest}, Context
+    },
+    list_of_tests::TestSelector,
+    protocol::{DUTToHost, HostToDUT, HostToDUTCommand, send_to_host},
+    read_cobs,
+    sanity_tests::{self, pin_test::PinTest},
 };
 
 pub fn run_dut_tests<P: OutputPin, I2C: I2c>(mut ctx: Context, mut session: DutPeripherals<I2C, P>)
@@ -32,6 +37,9 @@ where
             }
             HostToDUTCommand::Run(TestSelector::I2C_MultiWrite) => {
                 run_dut_test(I2C_MultiWrite, &mut ctx.channels.up, &mut session)
+            }
+            HostToDUTCommand::Run(TestSelector::I2C_MultiRead) => {
+                run_dut_test(I2C_MultiRead, &mut ctx.channels.up, &mut session)
             }
         }
     });

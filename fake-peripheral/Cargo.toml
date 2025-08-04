@@ -17,3 +17,6 @@ embassy-time = { version = "0.4.0", features = ["defmt", "defmt-timestamp-uptime
 # embassy-rp = { version = "0.4.0", features = [ "defmt", "time-driver", "rp2040"] }
 
 test-suite = { path = "../test-suite", features = ["fp"] }
+
+[profile.dev]
+opt-level = "s"

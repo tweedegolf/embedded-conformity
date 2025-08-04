@@ -32,7 +32,11 @@ async fn main(spawner: Spawner) {
 
     let pin = Output::new(p.GPIO0, Level::Low, OutputConfig::default());
 
-    let i2c_cfg = I2cConfig::default().with_timeout(BusTimeout::Disabled);
+    let i2c_cfg = I2cConfig::default()
+        .with_scl_st_timeout(FsmTimeout::new_const::<23>())
+        .with_scl_main_st_timeout(FsmTimeout::new_const::<23>())
+        .with_software_timeout(SoftwareTimeout::None)
+        .with_timeout(BusTimeout::Disabled);
 
     let i2c = I2c::new(p.I2C0, i2c_cfg)
         .unwrap()

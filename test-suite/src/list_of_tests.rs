@@ -12,4 +12,5 @@ pub enum TestSelector {
     I2C_SimpleRead,
     I2C_SimpleWrite,
     I2C_MultiWrite,
+    I2C_MultiRead
 }
