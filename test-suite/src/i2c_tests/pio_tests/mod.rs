@@ -73,6 +73,35 @@ pub mod address_nak {
     }
 }
 
+pub mod data_nak {
+    use super::*;
+
+    pub fn init_pio_data_nak<P: pio::Instance>(peripheral: &mut PioPeripheral<'_, P>) {
+        let program = pio_file!(
+            "src/i2c_tests/pio_tests/i2c_data_nak.pio",
+            select_program("data_nak")
+        );
+
+        let mut config = Config::<P>::default();
+
+        // Controls the RX FIFO
+        config.shift_in = ShiftConfig {
+            threshold: 8,
+            direction: ShiftDirection::Left,
+            auto_fill: true,
+        };
+
+        // Controls the TX FIFO
+        config.shift_out = ShiftConfig {
+            threshold: 8,
+            direction: ShiftDirection::Left,
+            auto_fill: true,
+        };
+
+        init_pio(peripheral, &program.program, config);
+    }
+}
+
 pub mod simple_read_write {
     use super::*;
 

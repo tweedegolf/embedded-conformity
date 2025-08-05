@@ -18,6 +18,7 @@ use crate::{
     Context,
     i2c_tests::{
         address_nak::I2C_AddressNAK,
+        data_nak::I2C_DataNAK,
         multi_write::{I2C_MultiWrite, I2C_MultiWrite_PIO},
         simple_read::{I2C_SimpleRead, I2C_SimpleRead_PIO},
         simple_write::{I2C_SimpleWrite, I2C_SimpleWrite_PIO},
@@ -122,6 +123,9 @@ pub async fn run_fp_tests<I: i2c::Instance, P: pio::Instance>(
                         HostToFPCommand::Run(TestSelector::I2C_AddressNAK) => {
                             run_fp_test(I2C_AddressNAK, &mut ctx.channels.up, &mut peripherals)
                                 .await;
+                        }
+                        HostToFPCommand::Run(TestSelector::I2C_DataNAK) => {
+                            run_fp_test(I2C_DataNAK, &mut ctx.channels.up, &mut peripherals).await
                         }
                     }
                     remaining

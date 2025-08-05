@@ -35,14 +35,12 @@ where
     }
 
     fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), ()> {
-        trace!("Starting i2c write");
         session
             .i2c
             .write(I2C_DEFAULT_ADDRESS, &[PAYLOAD])
             .map_err(|e| {
                 error!("{}", e);
             })?;
-        trace!("Finished i2c write");
 
         Ok(())
     }

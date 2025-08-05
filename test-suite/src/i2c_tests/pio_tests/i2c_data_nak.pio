@@ -1,4 +1,4 @@
-.program address_nak
+.program data_nak
 .side_set 1 opt pindirs
  
 ; pin 0 is SDA
@@ -29,11 +29,29 @@ done_set:
   wait 0 pin 1 [7] side 1 ; SCL low
 
 addr_ack:
-  ; do not acknowledge the address
-  set pins 1 side 1; Set SDA HIGH (NACK)
+  ; Acknowledge the address
+  set pins 0 side 1; Set SDA low (ACK)
 
   wait 1 pin 1 ; Wait for SCL high
   wait 0 pin 1 [7]  ; Wait for SCL low
+
+pre_byte:
+  set y, 7; Init counter to count down write or read
+
+  ; use x to determine Write (0) or Read (1)
+  nop side 0
+byte:
+  wait 1 pin 1 ; wait for SCL
+  in pins, 1 ; Read SDA
+  wait 0 pin 1 [7] ; wait for SCL
+  jmp y-- byte
+
+  nop side 1
+write_ack:
+  set pins 1; Set SDA high, NACK
+
+  wait 1 pin 1
+  wait 0 pin 1 [7]
 
   irq wait 0
 

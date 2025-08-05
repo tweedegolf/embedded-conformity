@@ -15,4 +15,5 @@ pub enum TestSelector {
     I2C_SimpleWrite,
     I2C_MultiWrite,
     I2C_AddressNAK,
+    I2C_DataNAK,
 }
