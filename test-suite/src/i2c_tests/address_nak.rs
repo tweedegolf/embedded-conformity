@@ -24,13 +24,13 @@ use {
 };
 
 /// The Device Under Test Test
-pub struct I2C_AdressNAK;
+pub struct I2C_AddressNAK;
 
-impl<P: OutputPin, T: I2c> DutTest<T, P> for I2C_AdressNAK
+impl<P: OutputPin, T: I2c> DutTest<T, P> for I2C_AddressNAK
 where
     T::Error: defmt::Format,
 {
-    const S: TestSelector = TestSelector::I2C_AdressNAK;
+    const S: TestSelector = TestSelector::I2C_AddressNAK;
 
     fn setup(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), ()> {
         Ok(())
@@ -60,8 +60,8 @@ where
 }
 
 #[cfg(feature = "fp")]
-impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_AdressNAK {
-    const S: TestSelector = TestSelector::I2C_AdressNAK;
+impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_AddressNAK {
+    const S: TestSelector = TestSelector::I2C_AddressNAK;
 
     async fn setup(
         &mut self,

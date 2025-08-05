@@ -19,10 +19,10 @@ pub mod pio_tests;
 // TODO: Make these tests generic over the FP side of things
 // - Either use the onboard I2C Slave Peripheral
 // - Or use PIO
+pub mod address_nak;
+pub mod multi_write;
 pub mod simple_read;
 pub mod simple_write;
-pub mod multi_write;
-pub mod address_nak;
 
 #[cfg(feature = "fp")]
 pub mod tester;

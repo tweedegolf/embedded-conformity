@@ -15,9 +15,16 @@ use postcard::accumulator::{CobsAccumulator, FeedResult};
 use rtt_target::UpChannel;
 
 use crate::{
+    Context,
     i2c_tests::{
-        address_nak::I2C_AdressNAK, multi_write::{I2C_MultiWrite, I2C_MultiWrite_PIO}, simple_read::{I2C_SimpleRead, I2C_SimpleRead_PIO}, simple_write::{I2C_SimpleWrite, I2C_SimpleWrite_PIO}
-    }, list_of_tests::TestSelector, protocol::{send_to_host, FPToHost, HostToFP, HostToFPCommand}, sanity_tests::{self, pin_test::PinTest}, Context
+        address_nak::I2C_AddressNAK,
+        multi_write::{I2C_MultiWrite, I2C_MultiWrite_PIO},
+        simple_read::{I2C_SimpleRead, I2C_SimpleRead_PIO},
+        simple_write::{I2C_SimpleWrite, I2C_SimpleWrite_PIO},
+    },
+    list_of_tests::TestSelector,
+    protocol::{FPToHost, HostToFP, HostToFPCommand, send_to_host},
+    sanity_tests::{self, pin_test::PinTest},
 };
 
 pub struct FPPeripherals<'a, I: i2c::Instance, P: pio::Instance> {
@@ -112,8 +119,9 @@ pub async fn run_fp_tests<I: i2c::Instance, P: pio::Instance>(
                             run_fp_test(I2C_MultiWrite_PIO, &mut ctx.channels.up, &mut peripherals)
                                 .await;
                         }
-                        HostToFPCommand::Run(TestSelector::I2C_AdressNAK) => {
-                            run_fp_test(I2C_AdressNAK, &mut ctx.channels.up, &mut peripherals).await;
+                        HostToFPCommand::Run(TestSelector::I2C_AddressNAK) => {
+                            run_fp_test(I2C_AddressNAK, &mut ctx.channels.up, &mut peripherals)
+                                .await;
                         }
                     }
                     remaining

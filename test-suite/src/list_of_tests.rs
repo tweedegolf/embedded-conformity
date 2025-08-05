@@ -6,11 +6,13 @@ use strum::{EnumIter, EnumString};
 
 /// When adding a test case an entry MUST also be added here
 #[allow(non_camel_case_types)]
-#[derive(EnumIter, Serialize, Deserialize, Debug, Format, PartialEq, Eq, Clone, Copy, EnumString)]
+#[derive(
+    EnumIter, Serialize, Deserialize, Debug, Format, PartialEq, Eq, Clone, Copy, EnumString,
+)]
 pub enum TestSelector {
     Sanity_Pin,
     I2C_SimpleRead,
     I2C_SimpleWrite,
     I2C_MultiWrite,
-    I2C_AdressNAK
+    I2C_AddressNAK,
 }

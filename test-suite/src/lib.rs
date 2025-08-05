@@ -3,7 +3,9 @@
 
 use defmt::Format;
 use postcard::accumulator::{CobsAccumulator, FeedResult};
-use rtt_target::{rtt_init, set_defmt_channel, set_print_channel, ChannelMode, DownChannel, UpChannel};
+use rtt_target::{
+    ChannelMode, DownChannel, UpChannel, rtt_init, set_defmt_channel, set_print_channel,
+};
 
 pub use heapless;
 pub use postcard;
@@ -87,4 +89,3 @@ fn read_cobs<T: for<'de> Deserialize<'de>>(down: &mut DownChannel, mut fun: impl
         }
     }
 }
-
