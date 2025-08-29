@@ -13,7 +13,7 @@ use {
 
 /// A simple sanity test that sets a pin high for the tester to check if it goes high
 pub mod pin_test {
-    use defmt::error;
+    use defmt::{debug, error};
     use embedded_hal::i2c::I2c;
 
     use super::*;
@@ -34,12 +34,16 @@ pub mod pin_test {
         }
 
         fn run(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), ()> {
+            debug!("Set high");
             session.pin.set_high().map_err(|e| {
                 error!("{}", e);
-            })
+            })?;
+
+            Ok(())
         }
 
         fn teardown(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), ()> {
+            debug!("Set low");
             session.pin.set_low().map_err(|e| {
                 error!("{}", e);
             })
@@ -55,7 +59,7 @@ pub mod pin_test {
         }
 
         async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
-            while peripherals.pin.is_low() {}
+            peripherals.pin.wait_for_any_edge().await;
             Ok(())
         }
 

@@ -30,18 +30,18 @@ async fn main(_spawner: Spawner) {
     let ctx = test_suite::init();
     let p = embassy_rp::init(Default::default());
 
-    let mut led = Output::new(p.PIN_13, Level::Low);
-    led.set_high();
+    // let mut led = Output::new(p.PIN_13, Level::Low);
+    // led.set_high();
 
-    let input_one = Input::new(p.PIN_10, embassy_rp::gpio::Pull::None);
+    let input_one = Input::new(p.PIN_12, embassy_rp::gpio::Pull::None);
 
     let mut config = i2c_slave::Config::default();
     config.addr = I2C_DEFAULT_ADDRESS as u16;
     // scl, sda
     let slave = I2cSlave::new(p.I2C0, p.PIN_1, p.PIN_0, I2cIrq, config);
 
-    let scl = p.PIN_9;
-    let sda = p.PIN_8;
+    let scl = p.PIN_17;
+    let sda = p.PIN_16;
 
     let mut pio = Pio::new(p.PIO0, PioIrq);
     let scl = pio.common.make_pio_pin(scl);

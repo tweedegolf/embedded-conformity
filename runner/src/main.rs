@@ -144,7 +144,6 @@ fn run_test(cfg: Config, selector: Option<TestSelector>) {
     Coordinator::new(cfg, dut_session, dut_elf, fp_session, fake_elf).run(selector);
 }
 
-#[tracing::instrument]
 fn build_firmware(path: &Path) -> PathBuf {
     let mut gctx = GlobalContext::default().unwrap();
     // makes sure the correct `.cargo/config` is loaded
@@ -162,7 +161,6 @@ fn build_firmware(path: &Path) -> PathBuf {
     comp.binaries.pop().unwrap().path
 }
 
-#[tracing::instrument]
 fn flash_firmware(
     probe_info: &DebugProbeInfo,
     target: impl Into<TargetSelector> + core::fmt::Debug,
@@ -170,6 +168,7 @@ fn flash_firmware(
 ) {
     assert!(elf.exists(), "Elf path does not exist");
 
+    debug!("opening probe");
     let probe = probe_info.open().unwrap();
 
     let mut session = probe.attach(target, Permissions::default()).unwrap();

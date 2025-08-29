@@ -61,12 +61,12 @@ impl Coordinator {
     }
 
     /// Initializes RTT and sets up the defmt logger
-    #[track_caller]
     fn init_channels(
         session: ArcSession,
         target: Target,
         elf: PathBuf,
     ) -> (UpChannel, DownChannel) {
+        debug!("initing channels for {:?}", target);
         let mut rtt = {
             let mut guard = session.lock();
             let mut core = guard.core(0).unwrap();
@@ -194,6 +194,7 @@ impl Coordinator {
             dut_acks.insert(dut_msg.id, Instant::now());
 
             to_fp.send(fp_msg).unwrap();
+            sleep(Duration::from_millis(500)); 
             to_dut.send(dut_msg).unwrap();
 
             let mut fp_success = false;

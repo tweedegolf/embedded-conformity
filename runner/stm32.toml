@@ -1,0 +1,10 @@
+[device_under_test]
+firmware_path = "../stm32/"
+serial = "066DFF515455777867024618"
+chip = "stm32f103RB"
+
+[fake_peripheral]
+firmware_path = "../fake-peripheral/"
+serial = "E6614103E78B5024"
+chip = "rp2040"
+
