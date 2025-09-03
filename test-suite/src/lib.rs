@@ -4,7 +4,7 @@
 use defmt::Format;
 use postcard::accumulator::{CobsAccumulator, FeedResult};
 use rtt_target::{
-    ChannelMode, DownChannel, UpChannel, rtt_init, set_defmt_channel, set_print_channel,
+    ChannelMode, DownChannel, UpChannel, rtt_init, set_defmt_channel,
 };
 
 pub use heapless;
@@ -28,6 +28,12 @@ pub struct Channels {
 
 pub struct Context {
     pub channels: Channels,
+}
+
+#[derive(Format)]
+pub enum TestError<'a> {
+    Failure(&'a str),
+    PartialSuccess(&'a str),
 }
 
 pub fn init() -> Context {

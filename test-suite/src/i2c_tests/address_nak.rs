@@ -5,6 +5,7 @@ use embedded_hal::{
 };
 
 use crate::{
+    TestError,
     dut::{DutPeripherals, DutTest},
     i2c_tests::I2C_DEFAULT_ADDRESS,
     list_of_tests::TestSelector,
@@ -32,29 +33,18 @@ where
 {
     const S: TestSelector = TestSelector::I2C_AddressNAK;
 
-    fn setup(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), ()> {
-        Ok(())
-    }
-
-    fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), ()> {
-        match session
-            .i2c
-            .read(I2C_DEFAULT_ADDRESS, &mut [0; 1])
-            .unwrap_err()
-            .kind()
-        {
-            embedded_hal::i2c::ErrorKind::NoAcknowledge(NoAcknowledgeSource::Address) => {} // Expected
-            embedded_hal::i2c::ErrorKind::NoAcknowledge(NoAcknowledgeSource::Unknown) => {
-                warn!("I2C Unknown NACK Source for Address NACK");
+    fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
+        if let Err(e) = session.i2c.read(I2C_DEFAULT_ADDRESS, &mut [0; 1]) {
+            match e.kind() {
+                embedded_hal::i2c::ErrorKind::NoAcknowledge(NoAcknowledgeSource::Address) => Ok(()), // Expected
+                embedded_hal::i2c::ErrorKind::NoAcknowledge(NoAcknowledgeSource::Unknown) => Err(
+                    TestError::PartialSuccess("I2C Unknown NACK Source for Address NACK"),
+                ),
+                _ => Err(TestError::Failure("Wrong error for address nack")),
             }
-            _ => return Err(()),
+        } else {
+            Err(TestError::Failure("missing address nack did not error"))
         }
-
-        Ok(())
-    }
-
-    fn teardown(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), ()> {
-        Ok(())
     }
 }
 

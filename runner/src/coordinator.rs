@@ -24,7 +24,7 @@ use test_suite::{
     },
     strum::IntoEnumIterator as _,
 };
-use tracing::{debug, error, info};
+use tracing::{debug, error, warn, info};
 
 use crate::{
     Config,
@@ -194,7 +194,7 @@ impl Coordinator {
             dut_acks.insert(dut_msg.id, Instant::now());
 
             to_fp.send(fp_msg).unwrap();
-            sleep(Duration::from_millis(500)); 
+            sleep(Duration::from_millis(500));
             to_dut.send(dut_msg).unwrap();
 
             let mut fp_success = false;
@@ -246,7 +246,14 @@ impl Coordinator {
                         DUTToHost::Ack(id) => {
                             assert!(dut_acks.remove(&id).is_some());
                         }
-                        DUTToHost::TestFailure(a) => error!("DT: Test {a:?} failed"),
+                        DUTToHost::TestFailure(a, msg) => {
+                            error!("DT: Test {a:?} failed: {msg}");
+                            dut_success = true;
+                        }
+                        DUTToHost::PartialSuccess(a, msg) => {
+                            warn!("DT: Test {a:?} partially succeeded: {msg}");
+                            dut_success = true;
+                        }
                         DUTToHost::Success(a) => {
                             assert_eq!(t, a);
                             debug!("dut success {t:?}");

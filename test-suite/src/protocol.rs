@@ -14,8 +14,6 @@ use rand::RngCore;
 
 use crate::list_of_tests::TestSelector;
 
-// TODO: Communicate the cause of the error to the runner
-
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
 pub struct HostToDUT {
     pub id: u32,
@@ -40,10 +38,21 @@ pub enum HostToDUTCommand {
     Run(TestSelector),
 }
 
+#[derive(Serialize, Debug, PartialEq, Eq)]
+#[cfg(not(feature = "std"))]
+pub enum DUTToHost<'a> {
+    Ack(u32),
+    TestFailure(TestSelector, &'a str),
+    PartialSuccess(TestSelector, &'a str),
+    Success(TestSelector),
+}
+
+#[cfg(feature = "std")]
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum DUTToHost {
     Ack(u32),
-    TestFailure(TestSelector),
+    TestFailure(TestSelector, alloc::string::String),
+    PartialSuccess(TestSelector, alloc::string::String),
     Success(TestSelector),
 }
 

@@ -2,6 +2,7 @@
 use embedded_hal::{digital::OutputPin, i2c::I2c};
 
 use crate::{
+    TestError,
     dut::{DutPeripherals, DutTest},
     i2c_tests::I2C_DEFAULT_ADDRESS,
     list_of_tests::TestSelector,
@@ -32,11 +33,11 @@ where
 {
     const S: TestSelector = TestSelector::I2C_SimpleRead;
 
-    fn setup(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), ()> {
+    fn setup(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
         Ok(())
     }
 
-    fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), ()> {
+    fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
         let mut buf = [0; 1];
 
         session.i2c.read(I2C_DEFAULT_ADDRESS, &mut buf).unwrap();
@@ -46,12 +47,14 @@ where
                 "i2c: payload mismatched what was read, got: {}, expected: {}",
                 &buf, PAYLOAD
             );
-        }
 
-        Ok(())
+            Err(TestError::Failure("i2c payload mismatch"))
+        } else {
+            Ok(())
+        }
     }
 
-    fn teardown(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), ()> {
+    fn teardown(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
         Ok(())
     }
 }

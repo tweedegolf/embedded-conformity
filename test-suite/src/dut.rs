@@ -1,9 +1,9 @@
-use defmt::{debug, error, unwrap};
+use defmt::{Format, debug, error, unwrap};
 use embedded_hal::{digital::OutputPin, i2c::I2c};
 use rtt_target::UpChannel;
 
 use crate::{
-    Context,
+    Context, TestError,
     i2c_tests::{
         address_nak::I2C_AddressNAK, data_nak::I2C_DataNAK, multi_write::I2C_MultiWrite,
         simple_read::I2C_SimpleRead, simple_write::I2C_SimpleWrite,
@@ -54,14 +54,19 @@ fn run_dut_test<I2C: I2c, P: OutputPin, T: DutTest<I2C, P>>(
     let t = <T as DutTest<_, _>>::S;
     if let Err(e) = test.setup(session) {
         error!("Encountered error during setup of test {}: {:?}", t, &e);
-        send_to_host(DUTToHost::TestFailure(t), up);
+        match e {
+            TestError::Failure(msg) => send_to_host(DUTToHost::TestFailure(t, msg.into()), up),
+            TestError::PartialSuccess(msg) => send_to_host(DUTToHost::PartialSuccess(t, msg.into()), up),
+        }
         return;
     }
 
     if let Err(e) = test.run(session) {
         error!("Encountered error during run of test {}: {:?}", t, &e);
-        send_to_host(DUTToHost::TestFailure(t), up);
-        return;
+        match e {
+            TestError::Failure(msg) => send_to_host(DUTToHost::TestFailure(t, msg.into()), up),
+            TestError::PartialSuccess(msg) => send_to_host(DUTToHost::PartialSuccess(t, msg.into()), up),
+        }
     }
 
     send_to_host(DUTToHost::Success(t), up);
@@ -80,7 +85,13 @@ pub struct DutPeripherals<I2C: I2c, P: OutputPin> {
 pub trait DutTest<I2C: I2c, P: OutputPin> {
     const S: TestSelector;
 
-    fn setup(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), ()>;
-    fn run(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), ()>;
-    fn teardown(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), ()>;
+    fn setup(&mut self, _: &mut DutPeripherals<I2C, P>) -> Result<(), TestError> {
+        Ok(())
+    }
+
+    fn run(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError>;
+
+    fn teardown(&mut self, _: &mut DutPeripherals<I2C, P>) -> Result<(), TestError> {
+        Ok(())
+    }
 }

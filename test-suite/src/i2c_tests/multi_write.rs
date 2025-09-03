@@ -2,6 +2,7 @@
 use embedded_hal::{digital::OutputPin, i2c::I2c};
 
 use crate::{
+    TestError,
     dut::{DutPeripherals, DutTest},
     i2c_tests::I2C_DEFAULT_ADDRESS,
     list_of_tests::TestSelector,
@@ -30,24 +31,15 @@ where
 {
     const S: TestSelector = TestSelector::I2C_MultiWrite;
 
-    fn setup(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), ()> {
-        Ok(())
-    }
-
-    fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), ()> {
-        trace!("Starting i2c write");
+    fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
         session
             .i2c
             .write(I2C_DEFAULT_ADDRESS, &PAYLOAD)
             .map_err(|e| {
                 error!("{}", e);
+                TestError::Failure("i2c failed to write")
             })?;
-        trace!("Finished i2c write");
 
-        Ok(())
-    }
-
-    fn teardown(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), ()> {
         Ok(())
     }
 }
@@ -55,10 +47,6 @@ where
 #[cfg(feature = "fp")]
 impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_MultiWrite {
     const S: TestSelector = TestSelector::I2C_MultiWrite;
-
-    async fn setup(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
-        Ok(())
-    }
 
     async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
         I2cSlaveTester::new(&mut peripherals.i2c)

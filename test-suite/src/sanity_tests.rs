@@ -16,6 +16,8 @@ pub mod pin_test {
     use defmt::{debug, error};
     use embedded_hal::i2c::I2c;
 
+    use crate::TestError;
+
     use super::*;
 
     /// The Device Under Test Test
@@ -27,25 +29,28 @@ pub mod pin_test {
     {
         const S: TestSelector = TestSelector::Sanity_Pin;
 
-        fn setup(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), ()> {
+        fn setup(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError<'_>> {
             session.pin.set_low().map_err(|e| {
                 error!("{}", e);
+                TestError::Failure("Could not set pin low")
             })
         }
 
-        fn run(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), ()> {
+        fn run(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError<'_>> {
             debug!("Set high");
             session.pin.set_high().map_err(|e| {
                 error!("{}", e);
+                TestError::Failure("Could not set pin high")
             })?;
 
             Ok(())
         }
 
-        fn teardown(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), ()> {
+        fn teardown(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError<'_>> {
             debug!("Set low");
             session.pin.set_low().map_err(|e| {
                 error!("{}", e);
+                TestError::Failure("Could not set pin low")
             })
         }
     }

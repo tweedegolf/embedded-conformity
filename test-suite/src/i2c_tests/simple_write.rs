@@ -2,6 +2,7 @@
 use embedded_hal::{digital::OutputPin, i2c::I2c};
 
 use crate::{
+    TestError,
     dut::{DutPeripherals, DutTest},
     i2c_tests::I2C_DEFAULT_ADDRESS,
     list_of_tests::TestSelector,
@@ -30,22 +31,23 @@ where
 {
     const S: TestSelector = TestSelector::I2C_SimpleWrite;
 
-    fn setup(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), ()> {
+    fn setup(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
         Ok(())
     }
 
-    fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), ()> {
+    fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
         session
             .i2c
             .write(I2C_DEFAULT_ADDRESS, &[PAYLOAD])
             .map_err(|e| {
                 error!("{}", e);
+                TestError::Failure("could not write i2c")
             })?;
 
         Ok(())
     }
 
-    fn teardown(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), ()> {
+    fn teardown(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
         Ok(())
     }
 }

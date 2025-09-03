@@ -46,9 +46,15 @@ pub trait FPTest<I: i2c::Instance, P: pio::Instance> {
     /// Specifies which test this is,
     const S: TestSelector;
 
-    async fn setup(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), ()>;
+    async fn setup(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
+        Ok(())
+    }
+
     async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), ()>;
-    async fn teardown(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), ()>;
+
+    async fn teardown(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
+        Ok(())
+    }
 }
 
 async fn run_fp_test<I: i2c::Instance, P: pio::Instance, T: FPTest<I, P>>(
