@@ -24,7 +24,7 @@ use test_suite::{
     },
     strum::IntoEnumIterator as _,
 };
-use tracing::{debug, error, warn, info};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     Config,
@@ -152,6 +152,14 @@ impl Coordinator {
         rx
     }
 
+    /// Reset a device when it errors or timeouts to run the next test
+    fn reset_device(session: ArcSession) {
+        info!("Resetting a core (5s)");
+        session.lock().core(0).unwrap().reset().unwrap();
+        sleep(Duration::from_secs(5));
+        info!("Core reset, continuing");
+    }
+
     pub fn run(self, selector: Option<TestSelector>) {
         let (fp_up, fp_down) = Self::init_channels(
             self.fp_session.clone(),
@@ -221,8 +229,29 @@ impl Coordinator {
                 }
 
                 if now.elapsed() > TIMEOUT {
-                    error!("Timeout: {t:?} took more than {}ms", TIMEOUT.as_millis());
-                    exit(1);
+                    error!("Timeout: {t:?} took more than {}ms, reseting..", TIMEOUT.as_millis());
+
+                    match (fp_success, dut_success) {
+                        (true, false) => {
+                            Self::reset_device(self.dut_session.clone());
+                            // FP success, DUT failed
+                        }
+                        (false, true) => {
+                            // FP failed, DUT success
+                            Self::reset_device(self.fp_session.clone());
+                        }
+                        (false, false) => {
+                            // Both failed
+                            Self::reset_device(self.fp_session.clone());
+                            Self::reset_device(self.dut_session.clone());
+                        }
+                        (true, true) => unreachable!(),
+                    }
+
+                    fp_acks.clear();
+                    dut_acks.clear();
+
+                    break 'inner;
                 }
 
                 match from_fp.try_recv() {
@@ -269,9 +298,10 @@ impl Coordinator {
                 }
             }
 
-            info!("Test {t:?}: Success ({}ms)", now.elapsed().as_millis());
+            info!("Test {t:?}: Finished ({}ms)", now.elapsed().as_millis());
         }
 
+        info!("Finished all tests :)");
         exit(0);
     }
 }
