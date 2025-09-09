@@ -52,6 +52,7 @@ fn run_dut_test<I2C: I2c, P: OutputPin, T: DutTest<I2C, P>>(
     session: &mut DutPeripherals<I2C, P>,
 ) {
     let t = <T as DutTest<_, _>>::S;
+
     if let Err(e) = test.setup(session) {
         error!("Encountered error during setup of test {}: {:?}", t, &e);
         match e {
