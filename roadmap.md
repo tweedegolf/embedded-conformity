@@ -23,6 +23,7 @@
     * [`Operation::DelayNs`](https://docs.rs/embedded-hal/latest/embedded_hal/spi/enum.Operation.html#variant.DelayNs)
   * Different clock rates
   * Different word sizes
+* For `async` methods: Test if the Wakers are set correctly
 
 ## Not covered by `trait`s
 
@@ -57,6 +58,7 @@
   * Break characters
   * FIFO overrun
   * Noise
+* Does the connection stay in sync over long running sequences
 
 ## Interfaces that need extra hardware
 
@@ -76,7 +78,7 @@
 * Currently supported
   * ESP32-C6
   * NRF52840
-  * STM32L??? TODO
+  * STM32L476RG
 
 * Easy to add (mostly embassy HALs)
   * RP2040 / RP2350
