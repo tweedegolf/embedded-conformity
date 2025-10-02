@@ -10,6 +10,7 @@ use embassy_nrf::{
     twim::{self, Twim},
 };
 use panic_probe as _;
+
 use test_suite::dut::{DutPeripherals, run_dut_tests};
 
 bind_interrupts!(struct Irqs {

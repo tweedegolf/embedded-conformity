@@ -83,7 +83,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     chip: "nRF52805_xxAA".to_owned(),
                 },
                 fake_peripheral: DeviceInfo {
-                    firmware_path: PathBuf::from_str("../fake-peripheral/").unwrap(),
+                    firmware_path: PathBuf::from_str("../shield/").unwrap(),
                     serial: "E6614103E78B5024".to_owned(),
                     chip: "rp2040".to_owned(),
                 },

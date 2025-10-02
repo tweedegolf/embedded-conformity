@@ -4,7 +4,7 @@ serial = "066DFF515455777867024618"
 chip = "stm32f103RB"
 
 [fake_peripheral]
-firmware_path = "../fake-peripheral/"
+firmware_path = "../shield/"
 serial = "E6614103E78B5024"
 chip = "rp2040"
 
