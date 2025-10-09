@@ -7,15 +7,15 @@
   * [`OutputPin`](https://docs.rs/embedded-hal/latest/embedded_hal/digital/trait.OutputPin.html)
   * [`StatefulOutputPin`](https://docs.rs/embedded-hal/latest/embedded_hal/digital/trait.StatefulOutputPin.html)
   * [`Wait`](https://docs.rs/embedded-hal-async/latest/embedded_hal_async/digital/trait.Wait.html)
-* [`delay::DelayNs`](https://docs.rs/embedded-hal/latest/embedded_hal/delay/trait.DelayNs.html)
-* [`pwm::SetDutyCycle`](https://docs.rs/embedded-hal/latest/embedded_hal/pwm/trait.SetDutyCycle.html)
-* I2C
+* I2C (in progress)
   * [`I2c`](https://docs.rs/embedded-hal/latest/embedded_hal/i2c/trait.I2c.html)
   * Arbitrary [`Operation`](https://docs.rs/embedded-hal/latest/embedded_hal/i2c/enum.Operation.html) sequences
   * Both [`AddressMode`s](https://docs.rs/embedded-hal/latest/embedded_hal/i2c/trait.AddressMode.html)
   * All [`ErrorKind`s](https://docs.rs/embedded-hal/latest/embedded_hal/i2c/enum.ErrorKind.html)
   * Different clock rates
   * Bus arbitration
+* [`delay::DelayNs`](https://docs.rs/embedded-hal/latest/embedded_hal/delay/trait.DelayNs.html)
+* [`pwm::SetDutyCycle`](https://docs.rs/embedded-hal/latest/embedded_hal/pwm/trait.SetDutyCycle.html)
 * SPI
   * [`SpiBus`](https://docs.rs/embedded-hal/latest/embedded_hal/spi/trait.SpiBus.html)
   * [`SpiDevice`](https://docs.rs/embedded-hal/latest/embedded_hal/spi/trait.SpiDevice.html)
