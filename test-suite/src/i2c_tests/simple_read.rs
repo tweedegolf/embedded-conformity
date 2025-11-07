@@ -32,10 +32,6 @@ where
 {
     const S: TestSelector = TestSelector::I2C_SimpleRead;
 
-    fn setup(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
-        Ok(())
-    }
-
     fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
         let mut buf = [0; 1];
 
@@ -52,19 +48,11 @@ where
             Ok(())
         }
     }
-
-    fn teardown(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
-        Ok(())
-    }
 }
 
 #[cfg(feature = "fp")]
 impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead {
     const S: TestSelector = TestSelector::I2C_SimpleRead;
-
-    async fn setup(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
-        Ok(())
-    }
 
     async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
         I2cSlaveTester::new(&mut peripherals.i2c)
@@ -74,11 +62,6 @@ impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleRead {
             .map_err(|e| {
                 error!("{}", e);
             })?;
-        Ok(())
-    }
-
-    async fn teardown(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
-        peripherals.i2c.reset();
         Ok(())
     }
 }

@@ -22,10 +22,10 @@ async fn main(_spawner: Spawner) {
     let ctx = test_suite::init();
     let p = embassy_nrf::init(Default::default());
 
-    let output_a = Output::new(p.P0_31, Level::Low, OutputDrive::Standard);
+    let output_a = Output::new(p.P1_01, Level::Low, OutputDrive::Standard);
 
     let config = twim::Config::default();
-    let twim = Twim::new(p.TWISPI0, Irqs, p.P0_03, p.P0_04, config);
+    let twim = Twim::new(p.TWISPI0, Irqs, p.P0_26, p.P0_27, config);
 
     let session = DutPeripherals {
         i2c: twim,

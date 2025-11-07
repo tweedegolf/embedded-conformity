@@ -1,12 +1,16 @@
 
 [build]
 # Set the default target to match the Cortex-M0+ in the RP2040
-target = "thumbv6m-none-eabi"
+target = "thumbv8m.main-none-eabihf"
 
 # Target specific options
 [target.thumbv6m-none-eabi]
 rustflags = ["-C", "link-args=-Tlink.x -Tlink-rp.x -Tdefmt.x"]
 runner = "probe-rs run --chip RP2040"
+
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+rustflags = ["-C", "link-args=-Tlink.x -Tdefmt.x"]
+runner = "probe-rs run --chip RP235x"
 
 [env]
 DEFMT_LOG = "trace"
