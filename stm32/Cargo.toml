@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "embassy-stm32f1-examples"
+name = "embassy-stm32"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
 publish = false
@@ -19,7 +19,7 @@ panic-probe = { version = "1.0.0", features = ["print-defmt"] }
 embassy-executor = { version = "0.7.0",features = ["arch-cortex-m", "executor-thread", "executor-interrupt", "defmt"] }
 
 # Change stm32f103rb to your chip name, if necessary.
-embassy-stm32 = { version = "0.4.0", features = [ "defmt", "stm32f103rb", "unstable-pac", "memory-x"]  }
+embassy-stm32 = { version = "0.4.0", features = [ "defmt", "stm32l476rg", "unstable-pac", "memory-x"]  }
 
 [profile.dev]
 opt-level = "s"
