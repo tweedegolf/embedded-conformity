@@ -1,6 +1,44 @@
-# More tests:
+# Roadmap
 
-## `embedded-hal(-async)`
+## In the near term
+
+### Adding tests:
+
+* GPIO: 3 days
+* Delay & PWM: 4 days
+* SPI: 2 weeks
+* Expanding I2C:
+    * Expand Operations: 1 week
+    * Address modes: 3 days
+    * Measure clock rates: 2 days
+    * Illegal Start/Stop: 2 weeks
+    * Bus arbitration: at least 3 weeks
+* UART:
+    * Setup + basic read/write: 2 weeks
+    * Baud Rate: 2 days
+    * Parity: 1 day
+    * Word Sizes: 2 days
+    * Flow Control: 2 weeks
+    * More later: see further down
+
+### Improving the test runner:
+
+* Synchronization barriers (1 week)
+* Better reports (> 3 days)
+
+### Improving the testing shield:
+
+* Fix USB wiring issue (1 day)
+
+### Adding more boards:
+
+Adding a board with an existing HAL should take between 2-5 days. Depending on setup complexity and hardware layout.
+
+
+
+## More tests:
+
+### `embedded-hal(-async)`
 
 * Digital (in progress)
   * [`InputPin`](https://docs.rs/embedded-hal/latest/embedded_hal/digital/trait.InputPin.html)
@@ -14,6 +52,7 @@
   * All [`ErrorKind`s](https://docs.rs/embedded-hal/latest/embedded_hal/i2c/enum.ErrorKind.html)
   * Different clock rates
   * Bus arbitration
+  * Injecting illegal Start/Stop conditions
 * [`delay::DelayNs`](https://docs.rs/embedded-hal/latest/embedded_hal/delay/trait.DelayNs.html)
 * [`pwm::SetDutyCycle`](https://docs.rs/embedded-hal/latest/embedded_hal/pwm/trait.SetDutyCycle.html)
 * SPI
@@ -25,7 +64,7 @@
   * Different word sizes
 * For `async` methods: Test if the Wakers are set correctly
 
-## Not covered by `trait`s
+### Not covered by `trait`s
 
 * ADC
 * DAC
@@ -38,26 +77,27 @@
 * Sleep modes
   * Power Usage
   * Wake Up Sources
-* Accelerators
-  * DMA (Memory-to-Memory)
-  * Hashing
-  * Crypto
-  * Cordic
-  * FMAC
-  * JPEG
 * CRC units
 * RNG
 * I2S
 * PDM
 * RTC
-* I3C (?)
 * I2C Target
 
-## [`smart-leds-trait`](https://docs.rs/smart-leds-trait/latest/smart_leds_trait/)
+### Accelerators
+
+* DMA (Memory-to-Memory)
+* Hashing
+* Crypto
+* Cordic
+* FMAC
+* JPEG
+
+### [`smart-leds-trait`](https://docs.rs/smart-leds-trait/latest/smart_leds_trait/)
 
 * Timing
 
-## UART ([`embedded_io`](https://docs.rs/embedded-io/latest/embedded_io/))
+### UART ([`embedded_io`](https://docs.rs/embedded-io/latest/embedded_io/))
 
 * Baud rate calculation
 * Parity
@@ -73,18 +113,18 @@
   * Noise
 * Does the connection stay in sync over long running sequences
 
-## Storage Traits
+### Storage Traits
 
 * Flash
 * Block device
 
-## Memory
+### Memory
 
 * Memory ECC
 * MPU
 * Trustzone
 
-## Interfaces that need extra hardware
+### Interfaces that need extra hardware
 
 * [`embedded_can`](https://docs.rs/embedded-can/latest/embedded_can/)
   * Data rate calculation
@@ -92,6 +132,7 @@
 * USB ([`embassy_usb_driver`](https://docs.rs/embassy-usb-driver/latest/embassy_usb_driver/))
 * USB Host
 * USB-C PD
+* I3C
 * Ethernet
 * NFC
 * Radio
@@ -99,7 +140,7 @@
   * IEEE 802.15.4
   * Bluetooth
 
-# More Devices
+## More Devices
 
 * Currently supported
   * ESP32-C6
@@ -125,7 +166,7 @@
   * Nordic nRf54L series
   * [PIC32](https://github.com/kiffie/pic32-rs)
 
-# Improving the test runner
+## Improving the test runner
 
 * Running with different pin assignments
 * Generating better reports
