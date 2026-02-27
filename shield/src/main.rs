@@ -41,8 +41,8 @@ async fn main(_spawner: Spawner) {
     // scl, sda
     let slave = I2cSlave::new(p.I2C1, p.PIN_11, p.PIN_10, I2cIrq, config);
 
-    let scl = p.PIN_17;
-    let sda = p.PIN_16;
+    let scl = p.PIN_15;
+    let sda = p.PIN_14;
 
     let mut pio = Pio::new(p.PIO0, PioIrq);
     let scl = pio.common.make_pio_pin(scl);
