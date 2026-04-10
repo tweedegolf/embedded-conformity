@@ -158,7 +158,7 @@ fn build_firmware(path: &Path) -> PathBuf {
             Message::BuildFinished(_) => break,
             Message::CompilerArtifact(artifact) => {
                 // TODO: check for correct artifact and only one path was returned
-                binaries.extend(artifact.filenames.into_iter().map(PathBuf::from));
+                binaries.extend(artifact.executable.map(PathBuf::from));
             }
             Message::CompilerMessage(msg) => {
                 tracing::debug!(
