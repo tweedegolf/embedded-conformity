@@ -8,7 +8,7 @@ use coordinator::Coordinator;
 use escargot::format::Message;
 use probe_rs::config::TargetSelector;
 use probe_rs::flashing::{
-    DownloadOptions, Format, IdfOptions, download_file, download_file_with_options,
+    DownloadOptions, ElfOptions, Format, IdfOptions, download_file, download_file_with_options,
 };
 use probe_rs::probe::DebugProbeInfo;
 use probe_rs::probe::list::Lister;
@@ -158,7 +158,7 @@ fn build_firmware(path: &Path) -> PathBuf {
             Message::BuildFinished(_) => break,
             Message::CompilerArtifact(artifact) => {
                 // TODO: check for correct artifact and only one path was returned
-                binaries.extend(artifact.filenames.into_iter().map(PathBuf::from));
+                binaries.extend(artifact.executable.map(PathBuf::from));
             }
             Message::CompilerMessage(msg) => {
                 tracing::debug!(
@@ -202,7 +202,7 @@ fn flash_firmware(
         debug!("Flashing IDF Bootloader");
         Format::Idf(IdfOptions::default())
     } else {
-        Format::Elf
+        Format::Elf(ElfOptions::default())
     };
 
     download_file_with_options(&mut session, elf, format, opts).unwrap();

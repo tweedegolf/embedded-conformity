@@ -10,6 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use object::{Object, ObjectSymbol};
 use parking_lot::FairMutex;
 use probe_rs::{
     Session,
@@ -24,7 +25,7 @@ use test_suite::{
     },
     strum::IntoEnumIterator as _,
 };
-use tracing::{debug, error, warn, info};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     Config,
@@ -66,19 +67,27 @@ impl Coordinator {
         target: Target,
         elf: PathBuf,
     ) -> (UpChannel, DownChannel) {
+        let elf_file = std::fs::read(&elf).unwrap();
+        let elf_file = object::File::parse(&*elf_file).unwrap();
+        let rtt_addr = elf_file.symbol_by_name("_SEGGER_RTT").map(|s| s.address());
+
         debug!("initing channels for {:?}", target);
         let mut rtt = {
             let mut guard = session.lock();
             let mut core = guard.core(0).unwrap();
 
-            match Rtt::attach(&mut core) {
-                Ok(rtt) => rtt,
-                // Workaround for nRF52840_xxAA
-                // https://github.com/probe-rs/probe-rs/issues/2242
-                Err(probe_rs::rtt::Error::MultipleControlBlocksFound(mut rtts)) => {
-                    rtts.pop().unwrap()
+            if let Some(addr) = rtt_addr {
+                Rtt::attach_at(&mut core, addr).unwrap()
+            } else {
+                match Rtt::attach(&mut core) {
+                    Ok(rtt) => rtt,
+                    // Workaround for nRF52840_xxAA
+                    // https://github.com/probe-rs/probe-rs/issues/2242
+                    Err(probe_rs::rtt::Error::MultipleControlBlocksFound(rtts)) => {
+                        Rtt::attach_at(&mut core, rtts[0]).unwrap()
+                    }
+                    e @ Err(_) => e.unwrap(),
                 }
-                e @ Err(_) => e.unwrap(),
             }
         };
 
