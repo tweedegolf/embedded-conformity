@@ -3,13 +3,9 @@ use std::fs::{self, canonicalize};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use cargo::core::Workspace;
-use cargo::core::compiler::CompileMode;
-use cargo::ops::CompileOptions;
-use cargo::util::interning::InternedString;
-use cargo::{GlobalContext, ops};
 use clap::{Parser, Subcommand};
 use coordinator::Coordinator;
+use escargot::format::Message;
 use probe_rs::config::TargetSelector;
 use probe_rs::flashing::{
     DownloadOptions, Format, IdfOptions, download_file, download_file_with_options,
@@ -37,8 +33,8 @@ enum Commands {
     Test {
         #[arg(long = "config", short, default_value = "./config.toml")]
         config_file: PathBuf,
-        #[arg(long,short)]
-        selector: Option<TestSelector>
+        #[arg(long, short)]
+        selector: Option<TestSelector>,
     },
     ExampleConfig,
 }
@@ -70,7 +66,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             let probes = l.list_all();
             println!("{probes:#?}");
         }
-        Commands::Test { config_file, selector } => {
+        Commands::Test {
+            config_file,
+            selector,
+        } => {
             let str = fs::read_to_string(config_file).unwrap();
             let cfg: Config = toml::from_str(&str).unwrap();
             run_test(cfg, selector);
@@ -144,21 +143,39 @@ fn run_test(cfg: Config, selector: Option<TestSelector>) {
     Coordinator::new(cfg, dut_session, dut_elf, fp_session, fake_elf).run(selector);
 }
 
+#[tracing::instrument]
 fn build_firmware(path: &Path) -> PathBuf {
-    let mut gctx = GlobalContext::default().unwrap();
-    // makes sure the correct `.cargo/config` is loaded
-    gctx.reload_rooted_at(path).unwrap();
+    let mut cmd = escargot::CargoBuild::new().into_command();
+    cmd.current_dir(path.parent().unwrap());
+    let output = escargot::CommandMessages::with_command(cmd).unwrap();
 
-    let path = canonicalize(path).unwrap();
-    let ws = Workspace::new(&path, &gctx).unwrap();
-    let mut opts = CompileOptions::new(&gctx, CompileMode::Build).unwrap();
+    let mut binaries: Vec<PathBuf> = vec![];
 
-    opts.build_config.requested_profile = InternedString::new("dev");
+    for msg in output {
+        let msg = msg.unwrap();
+        let msg = msg.decode().unwrap();
+        match msg {
+            Message::BuildFinished(_) => break,
+            Message::CompilerArtifact(artifact) => {
+                // TODO: check for correct artifact and only one path was returned
+                binaries.extend(artifact.filenames.into_iter().map(PathBuf::from));
+            }
+            Message::CompilerMessage(msg) => {
+                tracing::debug!(
+                    "rustc: {}",
+                    msg.message.rendered.unwrap_or("<unknown>".into())
+                );
+            }
+            Message::BuildScriptExecuted(msg) => {
+                tracing::debug!(?msg, "build script");
+            }
+            _ => todo!(),
+        }
+    }
 
-    let mut comp = ops::compile(&ws, &opts).unwrap();
-    assert!(comp.binaries.len() == 1);
+    assert_eq!(binaries.len(), 1);
 
-    comp.binaries.pop().unwrap().path
+    binaries.pop().unwrap()
 }
 
 fn flash_firmware(

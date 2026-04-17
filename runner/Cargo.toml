@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 probe-rs = "0.25"
 clap = { version = "4.5", features = ["derive"] }
-cargo = { version = "0.87", features = [ "all-static" ] }
+escargot = "0.5.15"
 test-suite = { path = "../test-suite", features = ["std"] }
 defmt-decoder = "1"
 defmt-parser = "1"
@@ -15,5 +15,4 @@ toml = "0.8"
 parking_lot = "0.12"
 
 tracing = "0.1"
-tracing-subscriber = "0.3"
-
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
