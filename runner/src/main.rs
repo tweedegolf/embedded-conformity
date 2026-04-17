@@ -8,7 +8,7 @@ use coordinator::Coordinator;
 use escargot::format::Message;
 use probe_rs::config::TargetSelector;
 use probe_rs::flashing::{
-    DownloadOptions, Format, IdfOptions, download_file, download_file_with_options,
+    DownloadOptions, ElfOptions, Format, IdfOptions, download_file, download_file_with_options,
 };
 use probe_rs::probe::DebugProbeInfo;
 use probe_rs::probe::list::Lister;
@@ -202,7 +202,7 @@ fn flash_firmware(
         debug!("Flashing IDF Bootloader");
         Format::Idf(IdfOptions::default())
     } else {
-        Format::Elf
+        Format::Elf(ElfOptions::default())
     };
 
     download_file_with_options(&mut session, elf, format, opts).unwrap();
