@@ -2,8 +2,8 @@
 edition = "2021"
 name = "embassy-stm32"
 version = "0.1.0"
-license = "MIT OR Apache-2.0"
 publish = false
+license = "Apache-2.0"
 
 [dependencies]
 test-suite = { path = "../test-suite" }
@@ -26,4 +26,3 @@ opt-level = "s"
 
 [profile.release]
 debug = 2
-
