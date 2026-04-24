@@ -17,7 +17,9 @@ heapless = "0.7.17" # pinned by postcard
 
 strum = { version = "0.26", features = ["derive"], default-features = false }
 rand = { optional = true, version = "0.9.1" }
+clap = { version = "4.6.1", optional = true }
 
 [features]
 std = [ "serde/std", "postcard/alloc", "rand" ]
 fp = [ "embassy-rp", "embassy-rp/rp2040"]
+clap = [ "dep:clap", "std" ]
