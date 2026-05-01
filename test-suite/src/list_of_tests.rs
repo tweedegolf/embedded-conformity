@@ -9,6 +9,7 @@ use strum::{EnumIter, EnumString};
 #[derive(
     EnumIter, Serialize, Deserialize, Debug, Format, PartialEq, Eq, Clone, Copy, EnumString,
 )]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum TestSelector {
     Sanity_Pin,
     I2C_SimpleRead,

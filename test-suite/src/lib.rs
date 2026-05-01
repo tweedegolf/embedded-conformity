@@ -1,6 +1,8 @@
 #![no_std]
 #![allow(async_fn_in_trait)]
 
+#[cfg(feature = "std")]
+extern crate std;
 use defmt::Format;
 use postcard::accumulator::{CobsAccumulator, FeedResult};
 use rtt_target::{

@@ -10,6 +10,7 @@ probe-rs = "0.31"
 clap = { version = "4.5", features = ["derive"] }
 escargot = "0.5.15"
 test-suite = { path = "../test-suite", features = ["std"] }
+test-suite = { path = "../test-suite", features = ["std", "clap"] }
 defmt-decoder = "1"
 defmt-parser = "1"
 serde = { version = "1", features = [ "derive" ] }
