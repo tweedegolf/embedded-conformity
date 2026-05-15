@@ -5,9 +5,7 @@
 extern crate std;
 use defmt::Format;
 use postcard::accumulator::{CobsAccumulator, FeedResult};
-use rtt_target::{
-    ChannelMode, DownChannel, UpChannel, rtt_init, set_defmt_channel,
-};
+use rtt_target::{ChannelMode, DownChannel, UpChannel, rtt_init, set_defmt_channel};
 
 pub use heapless;
 pub use postcard;
@@ -33,9 +31,9 @@ pub struct Context {
 }
 
 #[derive(Format)]
-pub enum TestError<'a> {
-    Failure(&'a str),
-    PartialSuccess(&'a str),
+pub enum TestError {
+    Failure(&'static str),
+    PartialSuccess(&'static str),
 }
 
 pub fn init() -> Context {

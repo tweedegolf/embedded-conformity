@@ -1,6 +1,6 @@
 #![cfg(feature = "fp")]
 
-use defmt::{debug, error, trace, unwrap};
+use defmt::{error, unwrap};
 
 pub use embassy_rp;
 
@@ -8,7 +8,7 @@ use embassy_rp::{
     gpio::Input,
     i2c,
     i2c_slave::I2cSlave,
-    pio::{self, InstanceMemory, LoadedProgram, Pio},
+    pio::{self, LoadedProgram, Pio},
 };
 use heapless::Vec;
 use postcard::accumulator::{CobsAccumulator, FeedResult};
@@ -17,15 +17,12 @@ use rtt_target::UpChannel;
 use crate::{
     Context,
     i2c_tests::{
-        address_nak::I2C_AddressNAK,
-        data_nak::I2C_DataNAK,
-        multi_write::{I2C_MultiWrite, I2C_MultiWrite_PIO},
-        simple_read::{I2C_SimpleRead, I2C_SimpleRead_PIO},
-        simple_write::{I2C_SimpleWrite, I2C_SimpleWrite_PIO},
+        address_nak::I2C_AddressNAK, data_nak::I2C_DataNAK, multi_write::I2C_MultiWrite_PIO,
+        simple_read::I2C_SimpleRead_PIO, simple_write::I2C_SimpleWrite_PIO,
     },
     list_of_tests::TestSelector,
     protocol::{FPToHost, HostToFP, HostToFPCommand, send_to_host},
-    sanity_tests::{self, pin_test::PinTest},
+    sanity_tests::pin_test::PinTest,
 };
 
 pub struct FPPeripherals<'a, I: i2c::Instance, P: pio::Instance> {

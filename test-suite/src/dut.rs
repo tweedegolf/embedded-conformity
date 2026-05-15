@@ -1,4 +1,4 @@
-use defmt::{Format, debug, error, unwrap};
+use defmt::{error, unwrap};
 use embedded_hal::{digital::OutputPin, i2c::I2c};
 use rtt_target::UpChannel;
 
@@ -46,6 +46,10 @@ where
     });
 }
 
+#[allow(
+    clippy::useless_conversion,
+    reason = ".into() is needed because with std feature the field is a String not a &str"
+)]
 fn run_dut_test<I2C: I2c, P: OutputPin, T: DutTest<I2C, P>>(
     mut test: T,
     up: &mut UpChannel,
@@ -57,7 +61,9 @@ fn run_dut_test<I2C: I2c, P: OutputPin, T: DutTest<I2C, P>>(
         error!("Encountered error during setup of test {}: {:?}", t, &e);
         match e {
             TestError::Failure(msg) => send_to_host(DUTToHost::TestFailure(t, msg.into()), up),
-            TestError::PartialSuccess(msg) => send_to_host(DUTToHost::PartialSuccess(t, msg.into()), up),
+            TestError::PartialSuccess(msg) => {
+                send_to_host(DUTToHost::PartialSuccess(t, msg.into()), up)
+            }
         }
         return;
     }
@@ -66,7 +72,9 @@ fn run_dut_test<I2C: I2c, P: OutputPin, T: DutTest<I2C, P>>(
         error!("Encountered error during run of test {}: {:?}", t, &e);
         match e {
             TestError::Failure(msg) => send_to_host(DUTToHost::TestFailure(t, msg.into()), up),
-            TestError::PartialSuccess(msg) => send_to_host(DUTToHost::PartialSuccess(t, msg.into()), up),
+            TestError::PartialSuccess(msg) => {
+                send_to_host(DUTToHost::PartialSuccess(t, msg.into()), up)
+            }
         }
     }
 

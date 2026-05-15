@@ -29,14 +29,14 @@ pub mod pin_test {
     {
         const S: TestSelector = TestSelector::Sanity_Pin;
 
-        fn setup(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError<'_>> {
+        fn setup(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError> {
             session.pin.set_low().map_err(|e| {
                 error!("{}", e);
                 TestError::Failure("Could not set pin low")
             })
         }
 
-        fn run(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError<'_>> {
+        fn run(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError> {
             debug!("Set high");
             session.pin.set_high().map_err(|e| {
                 error!("{}", e);
@@ -46,7 +46,7 @@ pub mod pin_test {
             Ok(())
         }
 
-        fn teardown(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError<'_>> {
+        fn teardown(&mut self, session: &mut DutPeripherals<I2C, P>) -> Result<(), TestError> {
             debug!("Set low");
             session.pin.set_low().map_err(|e| {
                 error!("{}", e);

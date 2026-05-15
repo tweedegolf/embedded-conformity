@@ -7,17 +7,16 @@ use crate::{
     i2c_tests::I2C_DEFAULT_ADDRESS,
     list_of_tests::TestSelector,
 };
-use defmt::{assert, assert_eq, debug, error, expect, info, intern, panic, trace, unwrap};
+use defmt::error;
 
 #[cfg(feature = "fp")]
 use {
-    crate::fp::{FPPeripherals, FPTest, PioPeripheral},
+    crate::fp::{FPPeripherals, FPTest},
     crate::i2c_tests::pio_tests::simple_read_write::{simple_init_pio, simple_reset_pio},
     crate::i2c_tests::tester::I2cSlaveTester,
     embassy_rp::{
-        gpio::Pull,
         i2c,
-        pio::{self, Config, Direction, ShiftConfig, ShiftDirection, program::pio_file},
+        pio::{self},
     },
 };
 

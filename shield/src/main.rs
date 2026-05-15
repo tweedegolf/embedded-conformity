@@ -7,7 +7,7 @@ use test_suite::fp::{FPPeripherals, PioPeripheral, embassy_rp, run_fp_tests};
 use test_suite::{
     fp::embassy_rp::{
         bind_interrupts,
-        gpio::{Input, Level, Output},
+        gpio::Input,
         i2c,
         i2c_slave::{self, I2cSlave},
         peripherals::{I2C0, PIO0},
