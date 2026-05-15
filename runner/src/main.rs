@@ -124,7 +124,7 @@ fn run_test(cfg: Config, selector: Option<TestSelector>) {
 
     let fake_elf = build_firmware(fake_path.as_path());
     let dut_elf = build_firmware(dut_path.as_path());
-    debug!("Finished building fimrware");
+    debug!("Finished building firmware");
 
     flash_firmware(
         fake_peripheral,
