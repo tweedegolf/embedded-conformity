@@ -309,6 +309,20 @@ dependencies = [
 
 [[package]]
 name = "embassy-stm32"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt 1.0.1",
+ "embassy-executor",
+ "embassy-stm32 0.4.0",
+ "panic-probe",
+ "rtt-target",
+ "test-suite",
+]
+
+[[package]]
+name = "embassy-stm32"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d972eab325cc96afee98f80a91ca6b00249b6356dc0fdbff68b70c200df9fae"
@@ -352,20 +366,6 @@ dependencies = [
  "stm32-metapac",
  "vcell",
  "volatile-register",
-]
-
-[[package]]
-name = "embassy-stm32f1-examples"
-version = "0.1.0"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "defmt 1.0.1",
- "embassy-executor",
- "embassy-stm32",
- "panic-probe",
- "rtt-target",
- "test-suite",
 ]
 
 [[package]]

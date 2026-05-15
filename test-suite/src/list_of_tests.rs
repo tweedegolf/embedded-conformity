@@ -1,4 +1,3 @@
-use core::str::FromStr;
 
 use defmt::Format;
 use serde::{Deserialize, Serialize};

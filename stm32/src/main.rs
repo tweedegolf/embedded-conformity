@@ -4,7 +4,7 @@
 use embassy_executor::Spawner;
 use embassy_stm32::{
     bind_interrupts,
-    gpio::{Input, Level, Output, Pull, Speed},
+    gpio::{Level, Output, Speed},
     i2c::{self, I2c},
     peripherals,
 };

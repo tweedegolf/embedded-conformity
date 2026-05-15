@@ -6,25 +6,19 @@
     holding buffers for the duration of a data transfer."
 )]
 
-use defmt::info;
 use embassy_executor::Spawner;
-use embassy_time::{Duration, Timer};
 use esp_hal::clock::CpuClock;
 use esp_hal::gpio::{Level, Output, OutputConfig};
-use esp_hal::i2c::master::{BusTimeout, Config as I2cConfig, FsmTimeout, I2c, SoftwareTimeout};
-use esp_hal::peripherals::LP_I2C0;
+use esp_hal::i2c::master::{BusTimeout, Config as I2cConfig, I2c};
 use esp_hal::riscv::asm::wfi;
-use esp_hal::timer::systimer::SystemTimer;
 use panic_rtt_target as _;
-use rtt_target::{self, rtt_init, rtt_init_defmt, set_defmt_channel, ChannelMode};
 use test_suite::dut::{run_dut_tests, DutPeripherals};
-use test_suite::{Channels, Context};
 
 // This creates a default app-descriptor required by the esp-idf bootloader.
 esp_bootloader_esp_idf::esp_app_desc!();
 
 #[esp_hal_embassy::main]
-async fn main(spawner: Spawner) {
+async fn main(_spawner: Spawner) {
     let ctx = test_suite::init();
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());

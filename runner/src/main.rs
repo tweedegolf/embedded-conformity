@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::fs::{self, canonicalize};
+use std::fs::{self};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -8,14 +8,14 @@ use coordinator::Coordinator;
 use escargot::format::Message;
 use probe_rs::config::TargetSelector;
 use probe_rs::flashing::{
-    DownloadOptions, ElfOptions, Format, IdfOptions, download_file, download_file_with_options,
+    DownloadOptions, ElfOptions, Format, IdfOptions, download_file_with_options,
 };
 use probe_rs::probe::DebugProbeInfo;
 use probe_rs::probe::list::Lister;
 use probe_rs::{Permissions, Session};
 use serde::{Deserialize, Serialize};
 use test_suite::list_of_tests::TestSelector;
-use tracing::{debug, info};
+use tracing::debug;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 mod coordinator;

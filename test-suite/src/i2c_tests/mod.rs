@@ -1,16 +1,8 @@
-use defmt::{Format, error, trace};
+use defmt::Format;
 
 #[cfg(feature = "fp")]
-use {
-    crate::fp::{FPPeripherals, FPTest},
-    embassy_rp::{i2c, pio},
-    tester::{I2cSlaveTestError, I2cSlaveTester},
-};
+use tester::I2cSlaveTestError;
 
-use crate::{
-    dut::{DutPeripherals, DutTest},
-    list_of_tests::TestSelector,
-};
 
 pub const I2C_DEFAULT_ADDRESS: u8 = 0x55;
 

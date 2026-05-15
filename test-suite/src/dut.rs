@@ -1,4 +1,4 @@
-use defmt::{Format, debug, error, unwrap};
+use defmt::{error, unwrap};
 use embedded_hal::{digital::OutputPin, i2c::I2c};
 use rtt_target::UpChannel;
 

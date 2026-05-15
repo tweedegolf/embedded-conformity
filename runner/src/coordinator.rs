@@ -1,12 +1,12 @@
 use std::{
-    collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
+    collections::HashMap,
+    path::PathBuf,
     process::exit,
     sync::{
         Arc,
         mpsc::{Receiver, Sender, TryRecvError, channel},
     },
-    thread::{self, Thread, scope, sleep, yield_now},
+    thread::{self, sleep},
     time::{Duration, Instant},
 };
 
@@ -14,7 +14,7 @@ use object::{Object, ObjectSymbol};
 use parking_lot::FairMutex;
 use probe_rs::{
     Session,
-    rtt::{DownChannel, Rtt, ScanRegion, UpChannel},
+    rtt::{DownChannel, Rtt, UpChannel},
 };
 use serde::{Deserialize, Serialize};
 use test_suite::{
