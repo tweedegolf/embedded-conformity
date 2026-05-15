@@ -16,3 +16,7 @@ pub enum TestSelector {
     I2C_AddressNAK,
     I2C_DataNAK,
 }
+
+// fn parse_test_selector(s: &str) -> Result<TestSelector, String> {
+//     TestSelector::from_str(s).map_err(|e| e.to_string())
+// }

@@ -6,5 +6,5 @@ chip = "nRF52805_xxAA"
 [fake_peripheral]
 firmware_path = "../shield/"
 serial = "E6614103E78B5024"
-chip = "rp2040"
+chip = "rp2350"
 

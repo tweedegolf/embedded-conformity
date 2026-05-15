@@ -1,16 +1,17 @@
 #![no_std]
 #![no_main]
 
+use defmt::info;
 use embassy_executor::Spawner;
 use panic_probe as _;
-use test_suite::fp::{FPPeripherals, PioPeripheral, embassy_rp, run_fp_tests};
+use test_suite::fp::{embassy_rp, run_fp_tests, FPPeripherals, PioPeripheral};
 use test_suite::{
     fp::embassy_rp::{
         bind_interrupts,
         gpio::Input,
         i2c,
         i2c_slave::{self, I2cSlave},
-        peripherals::{I2C0, PIO0},
+        peripherals::{I2C1, PIO0},
         pio::{self, Pio},
     },
     heapless::Vec,
@@ -18,7 +19,7 @@ use test_suite::{
 };
 
 bind_interrupts!(struct I2cIrq {
-    I2C0_IRQ => i2c::InterruptHandler<I2C0>;
+    I2C1_IRQ => i2c::InterruptHandler<I2C1>;
 });
 
 bind_interrupts!(struct PioIrq {
@@ -33,15 +34,15 @@ async fn main(_spawner: Spawner) {
     // let mut led = Output::new(p.PIN_13, Level::Low);
     // led.set_high();
 
-    let input_one = Input::new(p.PIN_12, embassy_rp::gpio::Pull::None);
+    let input_one = Input::new(p.PIN_0, embassy_rp::gpio::Pull::None);
 
     let mut config = i2c_slave::Config::default();
     config.addr = I2C_DEFAULT_ADDRESS as u16;
     // scl, sda
-    let slave = I2cSlave::new(p.I2C0, p.PIN_1, p.PIN_0, I2cIrq, config);
+    let slave = I2cSlave::new(p.I2C1, p.PIN_11, p.PIN_10, I2cIrq, config);
 
-    let scl = p.PIN_17;
-    let sda = p.PIN_16;
+    let scl = p.PIN_15;
+    let sda = p.PIN_14;
 
     let mut pio = Pio::new(p.PIO0, PioIrq);
     let scl = pio.common.make_pio_pin(scl);
@@ -58,6 +59,8 @@ async fn main(_spawner: Spawner) {
 
         pin: input_one,
     };
+
+    info!("Starting tests ...");
 
     run_fp_tests(ctx, peripherals).await;
 }

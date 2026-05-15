@@ -128,17 +128,17 @@ fn run_test(cfg: Config, selector: Option<TestSelector>) {
 
     flash_firmware(
         fake_peripheral,
-        &cfg.fake_peripheral.chip,
+        TargetSelector::Auto, // Seems to be needed for the RP2350 ?
         fake_elf.as_path(),
     );
-    debug!("Flashed FP");
+    debug!("Flashed Shield");
     flash_firmware(dut, &cfg.device_under_test.chip, dut_elf.as_path());
     debug!("Flashed DUT");
 
     let dut_session = start_device(dut, &cfg.device_under_test.chip);
     debug!("Started DUT");
     let fp_session = start_device(fake_peripheral, &cfg.fake_peripheral.chip);
-    debug!("Started FP");
+    debug!("Started Shield");
 
     Coordinator::new(dut_session, dut_elf, fp_session, fake_elf).run(selector);
 }
@@ -185,7 +185,6 @@ fn flash_firmware(
 ) {
     assert!(elf.exists(), "Elf path does not exist");
 
-    debug!("opening probe");
     let probe = probe_info.open().unwrap();
 
     let mut session = probe.attach(target, Permissions::default()).unwrap();

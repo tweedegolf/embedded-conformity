@@ -30,10 +30,6 @@ where
 {
     const S: TestSelector = TestSelector::I2C_SimpleWrite;
 
-    fn setup(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
-        Ok(())
-    }
-
     fn run(&mut self, session: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
         session
             .i2c
@@ -45,19 +41,11 @@ where
 
         Ok(())
     }
-
-    fn teardown(&mut self, _: &mut DutPeripherals<T, P>) -> Result<(), TestError> {
-        Ok(())
-    }
 }
 
 #[cfg(feature = "fp")]
 impl<I: i2c::Instance, P: pio::Instance> FPTest<I, P> for I2C_SimpleWrite {
     const S: TestSelector = TestSelector::I2C_SimpleWrite;
-
-    async fn setup(&mut self, _: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
-        Ok(())
-    }
 
     async fn run(&mut self, peripherals: &mut FPPeripherals<'_, I, P>) -> Result<(), ()> {
         I2cSlaveTester::new(&mut peripherals.i2c)

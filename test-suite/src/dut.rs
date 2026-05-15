@@ -1,4 +1,4 @@
-use defmt::{error, unwrap};
+use defmt::{debug, error, unwrap};
 use embedded_hal::{digital::OutputPin, i2c::I2c};
 use rtt_target::UpChannel;
 
@@ -28,6 +28,7 @@ where
                 run_dut_test(PinTest, &mut ctx.channels.up, &mut session);
             }
             HostToDUTCommand::Run(TestSelector::I2C_SimpleRead) => {
+                debug!("Running I2C Simple Read");
                 run_dut_test(I2C_SimpleRead, &mut ctx.channels.up, &mut session);
             }
             HostToDUTCommand::Run(TestSelector::I2C_SimpleWrite) => {
