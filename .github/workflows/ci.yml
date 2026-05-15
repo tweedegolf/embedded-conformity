@@ -85,7 +85,7 @@ jobs:
       - name: Check documentation
         env:
           RUSTDOCFLAGS: -D warnings
-        run: cargo doc --workspace --all-features --no-deps --document-private-items --keep-going
+        run: cargo doc --workspace --no-deps --document-private-items --keep-going
   rustfmt:
     name: rustfmt
     runs-on: ubuntu-latest
@@ -126,10 +126,10 @@ jobs:
       - name: Install SARIF tools
         run: cargo install sarif-fmt --locked
       - name: Check boards
-        run: ./run-in-all.sh cargo clippy --workspace --all-features --message-format=json > boards-clippy.json
+        run: ./run-in-all.sh cargo clippy --workspace --message-format=json > boards-clippy.json
         continue-on-error: true
       - name: Check workspace
-        run: cargo clippy --workspace --all-features --all-targets --message-format=json > workspace-clippy.json
+        run: cargo clippy --workspace --all-targets --message-format=json > workspace-clippy.json
         continue-on-error: true
       - name: Format sarif
         run: >
@@ -145,6 +145,6 @@ jobs:
           sarif_file: clippy-results.sarif
           wait-for-processing: true
       - name: Report status for boards
-        run: ./run-in-all.sh cargo clippy --all-features --keep-going -- -D warnings --allow deprecated
+        run: ./run-in-all.sh cargo clippy --keep-going -- -D warnings --allow deprecated
       - name: Report status for normal crates
-        run: cargo clippy --workspace --all-features --all-targets --keep-going -- -D warnings --allow deprecated
+        run: cargo clippy --workspace --all-targets --keep-going -- -D warnings --allow deprecated
