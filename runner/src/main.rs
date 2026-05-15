@@ -140,7 +140,7 @@ fn run_test(cfg: Config, selector: Option<TestSelector>) {
     let fp_session = start_device(fake_peripheral, &cfg.fake_peripheral.chip);
     debug!("Started FP");
 
-    Coordinator::new(cfg, dut_session, dut_elf, fp_session, fake_elf).run(selector);
+    Coordinator::new(dut_session, dut_elf, fp_session, fake_elf).run(selector);
 }
 
 #[tracing::instrument]

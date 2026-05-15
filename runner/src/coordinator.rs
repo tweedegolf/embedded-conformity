@@ -27,10 +27,7 @@ use test_suite::{
 };
 use tracing::{debug, error, info, warn};
 
-use crate::{
-    Config,
-    defmt_logger::{Target, run_logger},
-};
+use crate::defmt_logger::{Target, run_logger};
 
 pub type ArcSession = Arc<FairMutex<Session>>;
 
@@ -40,13 +37,10 @@ pub struct Coordinator {
 
     fp_session: ArcSession,
     fp_elf: PathBuf,
-
-    config: Config,
 }
 
 impl Coordinator {
     pub fn new(
-        cfg: Config,
         dut_session: Session,
         dut_elf: PathBuf,
         fp_session: Session,
@@ -55,7 +49,6 @@ impl Coordinator {
         Coordinator {
             dut_session: Arc::new(FairMutex::new(dut_session)),
             fp_session: Arc::new(FairMutex::new(fp_session)),
-            config: cfg,
             dut_elf,
             fp_elf,
         }
