@@ -3,10 +3,18 @@ use embedded_hal::{digital::OutputPin, i2c::I2c};
 use rtt_target::UpChannel;
 
 use crate::{
+    Context, TestError,
     i2c_tests::{
-        address_nak::I2C_AddressNAK, data_nak::I2C_DataNAK, multi_write::I2C_MultiWrite,
-        simple_read::I2C_SimpleRead, simple_write::{I2C_SimpleWrite, I2C_SimpleWrite_PIO},
-    }, list_of_tests::TestSelector, protocol::{send_to_host, DUTToHost, HostToDUT, HostToDUTCommand}, read_cobs, sanity_tests::pin_test::PinTest, Context, TestError
+        address_nak::I2C_AddressNAK,
+        data_nak::I2C_DataNAK,
+        multi_write::I2C_MultiWrite,
+        simple_read::I2C_SimpleRead,
+        simple_write::{I2C_SimpleWrite, I2C_SimpleWrite_PIO},
+    },
+    list_of_tests::TestSelector,
+    protocol::{DUTToHost, HostToDUT, HostToDUTCommand, send_to_host},
+    read_cobs,
+    sanity_tests::pin_test::PinTest,
 };
 
 pub fn run_dut_tests<P: OutputPin, I2C: I2c>(mut ctx: Context, mut session: DutPeripherals<I2C, P>)
