@@ -33,6 +33,4 @@ async fn main(_spawner: Spawner) {
     let session = DutPeripherals { i2c, pin };
 
     run_dut_tests(ctx, session);
-
-    loop {}
 }
