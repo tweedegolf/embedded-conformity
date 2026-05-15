@@ -1,15 +1,12 @@
-use defmt::{error, unwrap};
+use defmt::{debug, error, unwrap};
 use embedded_hal::{digital::OutputPin, i2c::I2c};
 use rtt_target::UpChannel;
 
 use crate::{
     Context, TestError,
     i2c_tests::{
-        address_nak::I2C_AddressNAK,
-        data_nak::I2C_DataNAK,
-        multi_write::I2C_MultiWrite,
-        simple_read::I2C_SimpleRead,
-        simple_write::{I2C_SimpleWrite, I2C_SimpleWrite_PIO},
+        address_nak::I2C_AddressNAK, data_nak::I2C_DataNAK, multi_write::I2C_MultiWrite,
+        simple_read::I2C_SimpleRead, simple_write::I2C_SimpleWrite,
     },
     list_of_tests::TestSelector,
     protocol::{DUTToHost, HostToDUT, HostToDUTCommand, send_to_host},
