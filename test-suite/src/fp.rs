@@ -17,11 +17,8 @@ use rtt_target::UpChannel;
 use crate::{
     Context,
     i2c_tests::{
-        address_nak::I2C_AddressNAK,
-        data_nak::I2C_DataNAK,
-        multi_write::I2C_MultiWrite_PIO,
-        simple_read::I2C_SimpleRead_PIO,
-        simple_write::I2C_SimpleWrite_PIO,
+        address_nak::I2C_AddressNAK, data_nak::I2C_DataNAK, multi_write::I2C_MultiWrite_PIO,
+        simple_read::I2C_SimpleRead_PIO, simple_write::I2C_SimpleWrite_PIO,
     },
     list_of_tests::TestSelector,
     protocol::{FPToHost, HostToFP, HostToFPCommand, send_to_host},

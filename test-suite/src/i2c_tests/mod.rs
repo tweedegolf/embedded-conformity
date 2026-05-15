@@ -3,7 +3,6 @@ use defmt::Format;
 #[cfg(feature = "fp")]
 use tester::I2cSlaveTestError;
 
-
 pub const I2C_DEFAULT_ADDRESS: u8 = 0x55;
 
 pub mod pio_tests;
