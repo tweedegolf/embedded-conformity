@@ -125,17 +125,26 @@ jobs:
         run: cargo install clippy-sarif --locked
       - name: Install SARIF tools
         run: cargo install sarif-fmt --locked
-      - name: Check
+      - name: Check boards
+        run: ./run-in-all.sh cargo clippy --workspace --all-features --message-format=json > boards-clippy.json
+        continue-on-error: true
+      - name: Check workspace
+        run: cargo clippy --workspace --all-features --all-targets --message-format=json > workspace-clippy.json
+        continue-on-error: true
+      - name: Format sarif
         run: >
-          cargo clippy --workspace --all-features --all-targets --message-format=json
+          cat boards-clippy.json workspace-clippy.json
+          | sort
+          | uniq
           | clippy-sarif
           | tee clippy-results.sarif
           | sarif-fmt
-        continue-on-error: true
       - name: Upload
         uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         with:
           sarif_file: clippy-results.sarif
           wait-for-processing: true
-      - name: Report status
+      - name: Report status for boards
+        run: ./run-in-all.sh cargo clippy --all-features --keep-going -- -D warnings --allow deprecated
+      - name: Report status for normal crates
         run: cargo clippy --workspace --all-features --all-targets --keep-going -- -D warnings --allow deprecated
