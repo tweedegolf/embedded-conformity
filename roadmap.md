@@ -171,4 +171,4 @@ Adding a board with an existing HAL should take between 2-5 days. Depending on s
 * Running with different pin assignments
 * Generating better reports
 * Synchronization barriers
-* Integrate it into CI (TODO colaborate with Systemscape?)
+* Integrate it into CI
