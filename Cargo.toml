@@ -1,0 +1,4 @@
+[workspace]
+resolver = "3"
+members = ["runner", "test-suite"]
+exclude = ["shield","esp32c6", "nRF52", "stm32"]

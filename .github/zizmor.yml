@@ -1,0 +1,6 @@
+# Based on: https://github.com/epage/_rust/blob/main/.github/zizmor.yml
+
+rules:
+  superfluous-actions:
+    # https://github.com/zizmorcore/zizmor/issues/1817
+    disable: true
